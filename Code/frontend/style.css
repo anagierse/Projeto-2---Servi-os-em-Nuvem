@@ -1,0 +1,105 @@
+body {
+    background-color: #ffe3f4;
+}
+
+.navbar-dark.bg-dark {
+    background-color: #7d3ac1 !important;
+}
+
+.card {
+    transition: transform 0.2s, box-shadow 0.3s;
+    border: 1px solid #ffccf2;
+}
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.card-body, .card-footer {
+    background-color: #ffffff;
+}
+.card.bg-light {
+    background-color: #fce7f9 !important;
+    border-radius: 8px;
+}
+
+.btn-primary {
+    background-color: #7d3ac1 !important;
+    border-color: #7d3ac1;
+}
+.btn-primary:hover {
+    background-color: #5d2b99;
+    border-color: #5d2b99;
+}
+.btn-success {
+    background-color: #ff99c8;
+    border-color: #ff99c8;
+    color: #3d1f56;
+}
+.btn-success:hover {
+    background-color: #ff7aa7;
+    border-color: #ff7aa7;
+}
+
+.modal-body pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    background-color: #edd2ff;
+    color: #3d1f56;
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px dashed #7d3ac1;
+
+body {
+    background-color: #ffe3f4;
+}
+
+.navbar-dark.bg-dark {
+    background-color: #7d3ac1 !important;
+}
+
+.card {
+    transition: transform 0.2s, box-shadow 0.3s;
+    border: 1px solid #ffccf2;
+}
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.card-body, .card-footer {
+    background-color: #ffffff;
+}
+.card.bg-light {
+    background-color: #fce7f9 !important;
+    border-radius: 8px;
+}
+
+.btn-primary {
+    background-color: #ddbcff;
+    border-color: #ddbcff;
+}
+.btn-primary:hover {
+    background-color: #b070ff;
+    border-color: #b070ff;
+}
+.btn-success {
+    background-color: #FFCFF1;
+    border-color: #FFCFF1;
+    color: #3d1f56;
+}
+.btn-success:hover {
+    background-color: #d9ffd9;
+    border-color: #d9ffd9;
+}
+
+.modal-body pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    background-color: #edd2ff;
+    color: #3d1f56;
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px dashed #ddbcff;
+}
+}

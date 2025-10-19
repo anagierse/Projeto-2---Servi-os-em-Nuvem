@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catálogo de Receitas - Projeto Cloud</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">Catálogo de Receitas AWS</span>
+            <button class="btn btn-info text-white" onclick="fetchReport()">Ver Relatório /report</button>
+            <button class="btn btn-secondary" onclick="window.location.reload()">Recarregar</button>
+        </div>
+    </nav>
+
+    <div class="container mt-5">
+        
+        <button class="btn btn-primary mb-4" type="button" data-bs-toggle="collapse" data-bs-target="#recipe-form-area" aria-expanded="false" aria-controls="recipe-form-area">
+            + Adicionar Nova Receita
+        </button>
+        <div class="collapse mb-5" id="recipe-form-area">
+            <div class="card card-body bg-light">
+                <h4>Cadastrar Receita</h4>
+                <form id="recipe-form">
+                    <div class="mb-3">
+                        <label for="titulo" class="form-label">Título da Receita <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="titulo" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="descricao" class="form-label">Descrição / Modo de Preparo</label>
+                        <textarea class="form-control" id="descricao" rows="3"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="tempo_preparo_min" class="form-label">Tempo de Preparo (min)</label>
+                            <input type="number" class="form-control" id="tempo_preparo_min">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="porcoes" class="form-label">Porções</label>
+                            <input type="number" class="form-control" id="porcoes">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-success">Salvar Receita</button>
+                    <button type="button" class="btn btn-danger" data-bs-toggle="collapse" data-bs-target="#recipe-form-area">Cancelar</button>
+                </form>
+            </div>
+        </div>
+
+        <h2 class="mb-4">Catálogo de Receitas</h2>
+        
+        <div id="report-modal" class="modal fade" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Relatório de Estatísticas (/report)</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body" id="report-content">Carregando...</div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="recipes-list" class="row row-cols-1 row-cols-md-3 g-4">
+            </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
