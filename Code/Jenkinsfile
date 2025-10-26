@@ -11,39 +11,39 @@ pipeline {
                 echo "1. 📥 Baixando código do GitHub..."
                 checkout scm
                 sh 'echo "📁 Estrutura de pastas:" && ls -la'
-                sh 'echo "📁 Conteúdo da pasta Code:" && ls -la Code/'
             }
         }
         
-        stage('🔨 Build Images') {
+        stage('🐳 Build com Docker') {
             steps {
-                echo "2. 🐳 Construindo imagens Docker..."
+                echo "2. 🐳 Construindo imagens com Docker..."
                 dir('Code') {
-                    sh '/usr/local/bin/docker-compose build --no-cache'
+                    sh 'docker build -t meu-frontend ./frontend'
+                    sh 'docker build -t meu-backend ./backend'
                 }
             }
         }
         
         stage('🚀 Deploy') {
             steps {
-                echo "3. 🚀 Fazendo deploy..."
+                echo "3. 🚀 Iniciando containers..."
                 script {
-                    dir('Code') {
-                        sh '/usr/local/bin/docker-compose down || true'
-                        sh '/usr/local/bin/docker-compose up -d'
-                        sleep 25
-                    }
+                    sh 'docker stop frontend-container backend-container || true'
+                    sh 'docker rm frontend-container backend-container || true'
+                    
+                    sh 'docker run -d --name backend-container -p 3000:3000 meu-backend'
+                    sh 'docker run -d --name frontend-container -p 80:80 meu-frontend'
+                    
+                    sleep 20
                 }
             }
         }
         
-        stage('✅ Health Check') {
+        stage('✅ Verify') {
             steps {
-                echo "4. 🔍 Verificando serviços..."
+                echo "4. ✅ Verificando deploy..."
                 script {
-                    dir('Code') {
-                        sh '/usr/local/bin/docker-compose ps'
-                    }
+                    sh 'docker ps'
                     sh """
                         echo " "
                         echo "🎉 DEPLOY COMPLETO!"
@@ -63,10 +63,10 @@ pipeline {
             deleteDir()
         }
         success {
-            echo "✅ SUCESSO TOTAL! App rodando em: http://${EC2_IP}"
+            echo "✅ SUCESSO! App rodando em: http://${EC2_IP}"
         }
         failure {
-            echo "❌ Algo deu errado. Verifique os logs acima."
+            echo "❌ Erro no pipeline."
         }
     }
 }
