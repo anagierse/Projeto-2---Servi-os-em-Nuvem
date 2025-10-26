@@ -3,7 +3,6 @@ const API_URL = "https://n9zm9obpx9.execute-api.us-east-1.amazonaws.com/v1";
 
 const reportModal = new bootstrap.Modal(document.getElementById('report-modal'));
 
-
 async function fetchRecipes() {
     const listElement = document.getElementById('recipes-list');
     listElement.innerHTML = '<div class="col-12 text-center"><p>Carregando receitas...</p></div>';
