@@ -8,36 +8,20 @@ pipeline {
     stages {
         stage('📥 Checkout') {
             steps {
-                echo "1. 📥 Baixando código atualizado..."
+                echo "1. 📥 Baixando código..."
                 checkout scm
-                sh 'echo "📁 Estrutura atual:" && ls -la Code/'
             }
         }
 
-        stage('🔨 Build Images') {
+        stage('🚀 Deploy com Docker Compose') {
             steps {
-                echo "2. 🐳 Construindo imagens..."
+                echo "2. 🚀 Deploy com Docker Compose..."
                 dir('Code') {
-                    sh 'docker build -t code-backend -f backend/Dockerfile ./backend || echo "❌ Build backend falhou"'
-                    sh 'docker build -t code-frontend -f frontend/Dockerfile ./frontend || echo "❌ Build frontend falhou"'
-                }
-            }
-        }
-
-        stage('🚀 Deploy') {
-            steps {
-                echo "3. 🚀 Implantando containers..."
-                script {
                     sh '''
-                        echo "🛑 Parando containers antigos..."
-                        docker stop code-frontend-1 code-backend-1 2>/dev/null || true
-                        docker rm code-frontend-1 code-backend-1 2>/dev/null || true
-                        
-                        echo "🎯 Iniciando novos containers..."
-                        docker run -d --name code-backend-1 -p 3000:3000 code-backend || echo "❌ Backend não iniciou"
-                        docker run -d --name code-frontend-1 -p 80:80 code-frontend || echo "❌ Frontend não iniciou"
-                        
-                        sleep 25
+                        docker-compose down
+                        docker-compose build --no-cache
+                        docker-compose up -d
+                        sleep 20
                     '''
                 }
             }
@@ -45,23 +29,12 @@ pipeline {
         
         stage('✅ Verificação') {
             steps {
-                echo "4. ✅ Verificando deploy..."
+                echo "3. ✅ Verificando..."
                 script {
-                    sh 'docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"'
-                    sh '''
-                        echo "🧪 Testando serviços..."
-                        curl -f http://localhost:3000 >/dev/null 2>&1 && echo "✅ Backend respondendo" || echo "❌ Backend offline"
-                        curl -f http://localhost:80 >/dev/null 2>&1 && echo "✅ Frontend respondendo" || echo "❌ Frontend offline"
-                        
-                        echo "🔍 Verificando conteúdo HTML..."
-                        curl -s http://localhost:80 | grep -i -E "deploy|funcionando" || echo "❌ Mudanças não encontradas no HTML"
-                    '''
+                    sh 'docker-compose ps'
                     sh """
-                        echo " "
-                        echo "🎉 DEPLOY CONCLUÍDO!"
+                        echo "🎉 Deploy completo!"
                         echo "🌐 Seu app: http://${EC2_IP}"
-                        echo "🔧 API: http://${EC2_IP}:3000"
-                        echo " "
                     """
                 }
             }
@@ -70,13 +43,7 @@ pipeline {
 
     post {
         always {
-            echo "🧹 Pipeline finalizado"
-        }
-        success {
-            echo "✅ SUCESSO! App atualizado em: http://${EC2_IP}"
-        }
-        failure {
-            echo "❌ Erro no pipeline."
+            echo "🧹 Finalizado"
         }
     }
 }
