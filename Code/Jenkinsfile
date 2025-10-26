@@ -3,7 +3,6 @@ pipeline {
     
     environment {
         CODE_DIR = "${WORKSPACE}/Code"
-        ENV_FILE = "${CODE_DIR}/env"
     }
     
     stages {
@@ -21,12 +20,9 @@ pipeline {
         stage('🐳 Build Containers') {
             steps {
                 sh '''
-                    echo "🔨 Build Backend..."
-                    cd $CODE_DIR/backend && docker build -t code-backend . && cd ../..
-
-                    echo "🔨 Build Frontend..."
-                    cd $CODE_DIR/frontend && docker build -t code-frontend . && cd ../..
-
+                    echo "🔨 Build com Docker Compose..."
+                    cd $CODE_DIR
+                    docker-compose build
                     echo "✅ Builds concluídos"
                 '''
             }
@@ -36,12 +32,11 @@ pipeline {
             steps {
                 sh '''
                     echo "🛑 Parando containers antigos..."
-                    docker stop code-backend-1 code-frontend-1 2>/dev/null || true
-                    docker rm code-backend-1 code-frontend-1 2>/dev/null || true
+                    cd $CODE_DIR
+                    docker-compose down
 
                     echo "🎯 Iniciando novos containers..."
-                    docker run -d --name code-backend-1 --env-file "$ENV_FILE" -p 3000:3000 code-backend
-                    docker run -d --name code-frontend-1 -p 80:80 code-frontend
+                    docker-compose up -d
 
                     echo "⏳ Aguardando inicialização..."
                     sleep 25
@@ -56,19 +51,18 @@ pipeline {
                     docker ps --format "table {{.Names}}\\t{{.Status}}\\t{{.Ports}}"
 
                     echo "🧪 Testando serviços..."
-
                     if curl -s -f http://localhost:3000 > /dev/null; then
                         echo "🎉 Backend ONLINE - http://localhost:3000"
                     else
                         echo "❌ Backend OFFLINE"
-                        docker logs code-backend-1 --tail=10
+                        docker logs $(docker-compose ps -q backend) --tail=10
                     fi
 
                     if curl -s -f http://localhost:80 > /dev/null; then
                         echo "🎉 Frontend ONLINE - http://localhost"
                     else
                         echo "❌ Frontend OFFLINE"
-                        docker logs code-frontend-1 --tail=10
+                        docker logs $(docker-compose ps -q frontend) --tail=10
                     fi
                 '''
             }
