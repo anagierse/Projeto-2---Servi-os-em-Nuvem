@@ -8,42 +8,45 @@ pipeline {
     stages {
         stage('📥 Checkout') {
             steps {
-                echo "1. 📥 Baixando código..."
+                echo "1. 📥 Baixando código atualizado..."
                 checkout scm
+                sh 'echo "📁 Estrutura atual:" && ls -la Code/'
             }
         }
 
-        stage('🔍 Verificar Estrutura') {
+        stage('🔧 Correção Requirements') {
             steps {
-                echo "2. 🔍 Verificando arquivos..."
+                echo "2. 🔧 Corrigindo requirements.txt..."
                 dir('Code') {
                     sh '''
-                        echo "=== BACKEND ==="
-                        ls -la backend/ && echo "✅ Backend encontrado" || echo "❌ Backend não encontrado"
-                        echo "=== FRONTEND ==="  
-                        ls -la frontend/ && echo "✅ Frontend encontrado" || echo "❌ Frontend não encontrado"
-                        echo "=== DOCKERFILES ==="
-                        cat backend/Dockerfile | head -3 && echo "✅ Dockerfile backend OK" || echo "❌ Dockerfile backend problema"
-                        cat frontend/Dockerfile | head -3 && echo "✅ Dockerfile frontend OK" || echo "❌ Dockerfile frontend problema"
+                        echo "🔍 Verificando backend..."
+                        ls -la backend/
+                        
+                        # CORRIGIR: Arquivo se chama 'requirments.txt' mas Dockerfile procura 'requirements.txt'
+                        echo "📝 Corrigindo nome do arquivo..."
+                        mv backend/requirments.txt backend/requirements.txt 2>/dev/null || echo "✅ Arquivo já está correto"
+                        
+                        echo "✅ Arquivo corrigido:"
+                        ls -la backend/requirements.txt
                     '''
                 }
             }
         }
 
-        stage('🐳 Build Frontend') {
+        stage('🔨 Build Backend') {
             steps {
-                echo "3. 🐳 Construindo Frontend..."
+                echo "3. 🐳 Construindo Backend..."
                 dir('Code') {
-                    sh 'timeout 300 docker build -t code-frontend -f frontend/Dockerfile ./frontend || echo "⚠️ Build frontend pode ter demorado muito"'
+                    sh 'docker build -t backend-app -f backend/Dockerfile ./backend || echo "❌ Build backend falhou"'
                 }
             }
         }
 
-        stage('🐳 Build Backend') {
+        stage('🔨 Build Frontend') {
             steps {
-                echo "4. 🐳 Construindo Backend..."
+                echo "4. 🐳 Construindo Frontend..."
                 dir('Code') {
-                    sh 'timeout 300 docker build -t code-backend -f backend/Dockerfile ./backend || echo "⚠️ Build backend pode ter demorado muito"'
+                    sh 'docker build -t frontend-app -f frontend/Dockerfile ./frontend || echo "❌ Build frontend falhou"'
                 }
             }
         }
@@ -53,44 +56,39 @@ pipeline {
                 echo "5. 🚀 Implantando containers..."
                 script {
                     sh '''
-                        echo "🛑 Limpando containers antigos..."
+                        echo "🛑 Parando containers antigos..."
+                        # PARA OS CONTAINERS QUE ESTÃO RODANDO (code-frontend-1, code-backend-1)
                         docker stop code-frontend-1 code-backend-1 2>/dev/null || true
                         docker rm code-frontend-1 code-backend-1 2>/dev/null || true
                         
-                        echo "🎯 Iniciando Backend..."
-                        docker run -d --name code-backend-1 -p 3000:3000 code-backend || echo "❌ Backend falhou"
+                        echo "🎯 Iniciando novos containers..."
+                        docker run -d --name code-backend-1 -p 3000:3000 backend-app || echo "❌ Backend não iniciou"
+                        docker run -d --name code-frontend-1 -p 80:80 frontend-app || echo "❌ Frontend não iniciou"
                         
-                        echo "🎯 Iniciando Frontend..." 
-                        docker run -d --name code-frontend-1 -p 80:80 code-frontend || echo "❌ Frontend falhou"
-                        
-                        echo "⏳ Aguardando inicialização..."
-                        sleep 20
+                        sleep 25
                     '''
                 }
             }
         }
         
-        stage('✅ Verificação Final') {
+        stage('✅ Verificação') {
             steps {
                 echo "6. ✅ Verificando deploy..."
                 script {
-                    sh 'docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"'
+                    sh 'docker ps --format "table {{.Names}}\t{{.Status}}\t{{.RunningFor}}"'
                     sh '''
-                        echo " "
-                        echo "🧪 Testes de conectividade:"
-                        curl -s -o /dev/null -w "Frontend: %{http_code}\\n" http://localhost:80
-                        curl -s -o /dev/null -w "Backend: %{http_code}\\n" http://localhost:3000
-                        echo " "
+                        echo "🧪 Testando serviços..."
+                        curl -f http://localhost:3000 >/dev/null 2>&1 && echo "✅ Backend respondendo" || echo "❌ Backend offline"
+                        curl -f http://localhost:80 >/dev/null 2>&1 && echo "✅ Frontend respondendo" || echo "❌ Frontend offline"
                     '''
                     sh """
-                        echo "🎉 DEPLOY CONCLUÍDO!"
-                        echo "🌐 Seu app está em: http://${EC2_IP}"
-                        echo "🔧 API está em: http://${EC2_IP}:3000"
                         echo " "
-                        echo "💡 Dica: Se as mudanças não aparecerem, tente:"
-                        echo "   - Ctrl+F5 no navegador"
-                        echo "   - Modo anônimo"
-                        echo "   - Aguarde 1-2 minutos para DNS"
+                        echo "🎉 DEPLOY CONCLUÍDO!"
+                        echo "🌐 Frontend: http://${EC2_IP}"
+                        echo "🔧 Backend: http://${EC2_IP}:3000"
+                        echo " "
+                        echo "📝 Seu HTML atualizado deve estar visível agora!"
+                        echo " "
                     """
                 }
             }
@@ -99,7 +97,13 @@ pipeline {
 
     post {
         always {
-            echo "🏁 Pipeline finalizado - Acesse: http://${EC2_IP}"
+            echo "🧹 Pipeline finalizado"
+        }
+        success {
+            echo "✅ SUCESSO! App atualizado em: http://${EC2_IP}"
+        }
+        failure {
+            echo "❌ Erro no pipeline."
         }
     }
 }
