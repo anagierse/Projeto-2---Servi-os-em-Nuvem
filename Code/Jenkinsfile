@@ -2,71 +2,76 @@ pipeline {
     agent any
 
     environment {
-        WORKSPACE_CODE = "${WORKSPACE}/Code"
+        CODE_DIR = "${WORKSPACE}/Code"
     }
 
     stages {
         stage('📥 Checkout') {
             steps {
                 checkout scm
-                sh """
+                sh '''
                     echo "📁 Estrutura do projeto:"
-                    ls -la $WORKSPACE_CODE
+                    ls -la "$CODE_DIR"
                     echo "✅ Checkout completo"
-                """
+                '''
             }
         }
 
         stage('🐳 Build Containers') {
             steps {
-                sh """
-                    echo "🔨 Build dos containers via docker-compose..."
-                    cd $WORKSPACE_CODE
-                    docker-compose build backend frontend
-                    echo "✅ Build concluído"
-                """
+                sh '''
+                    echo "🔨 Build Backend..."
+                    cd "$CODE_DIR/backend" && docker build -t code-backend . && cd "$CODE_DIR"
+
+                    echo "🔨 Build Frontend..."
+                    cd "$CODE_DIR/frontend" && docker build -t code-frontend . && cd "$CODE_DIR"
+
+                    echo "✅ Builds concluídos"
+                '''
             }
         }
 
         stage('🚀 Deploy') {
             steps {
-                sh """
+                sh '''
                     echo "🛑 Parando containers antigos..."
-                    cd $WORKSPACE_CODE
-                    docker-compose down || true
+                    docker stop code-backend-1 code-frontend-1 2>/dev/null || true
+                    docker rm code-backend-1 code-frontend-1 2>/dev/null || true
 
-                    echo "🎯 Subindo novos containers..."
-                    docker-compose up -d backend frontend
+                    echo "🎯 Iniciando novos containers..."
+                    docker run -d --name code-backend-1 --env-file "$CODE_DIR/env" -p 3000:3000 code-backend
+                    docker run -d --name code-frontend-1 -p 80:80 code-frontend
 
                     echo "⏳ Aguardando inicialização..."
                     sleep 25
-                """
+                '''
             }
         }
 
         stage('✅ Health Check') {
             steps {
-                sh """
+                sh '''
                     echo "📊 Status dos containers:"
-                    cd $WORKSPACE_CODE
-                    docker-compose ps
+                    docker ps --format "table {{.Names}}\\t{{.Status}}\\t{{.Ports}}"
 
                     echo "🧪 Testando serviços..."
-                    
+
+                    # Teste backend
                     if curl -s -f http://localhost:3000 > /dev/null; then
                         echo "🎉 Backend ONLINE - http://23.22.57.128:3000"
                     else
                         echo "❌ Backend OFFLINE"
-                        docker-compose logs backend --tail=10
+                        docker logs code-backend-1 --tail=10
                     fi
 
+                    # Teste frontend  
                     if curl -s -f http://localhost:80 > /dev/null; then
                         echo "🎉 Frontend ONLINE - http://23.22.57.128"
                     else
                         echo "❌ Frontend OFFLINE"
-                        docker-compose logs frontend --tail=10
+                        docker logs code-frontend-1 --tail=10
                     fi
-                """
+                '''
             }
         }
     }
