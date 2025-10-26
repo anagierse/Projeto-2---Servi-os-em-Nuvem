@@ -1,17 +1,13 @@
 pipeline {
     agent any
     
-    environment {
-        CODE_DIR = "${WORKSPACE}/Code"
-    }
-    
     stages {
         stage('📥 Checkout') {
             steps {
                 checkout scm
                 sh '''
                     echo "📁 Estrutura do projeto:"
-                    ls -la $CODE_DIR
+                    ls -la Code/
                     echo "✅ Checkout completo"
                 '''
             }
@@ -20,9 +16,12 @@ pipeline {
         stage('🐳 Build Containers') {
             steps {
                 sh '''
-                    echo "🔨 Build com Docker Compose..."
-                    cd $CODE_DIR
-                    docker-compose build
+                    echo "🔨 Build Backend..."
+                    cd Code/backend && docker build -t code-backend . && cd ../..
+                    
+                    echo "🔨 Build Frontend..."
+                    cd Code/frontend && docker build -t code-frontend . && cd ../..
+                    
                     echo "✅ Builds concluídos"
                 '''
             }
@@ -32,12 +31,13 @@ pipeline {
             steps {
                 sh '''
                     echo "🛑 Parando containers antigos..."
-                    cd $CODE_DIR
-                    docker-compose down
-
+                    docker stop code-backend-1 code-frontend-1 2>/dev/null || true
+                    docker rm code-backend-1 code-frontend-1 2>/dev/null || true
+                    
                     echo "🎯 Iniciando novos containers..."
-                    docker-compose up -d
-
+                    docker run -d --name code-backend-1 -p 3000:3000 code-backend
+                    docker run -d --name code-frontend-1 -p 80:80 code-frontend
+                    
                     echo "⏳ Aguardando inicialização..."
                     sleep 25
                 '''
@@ -49,20 +49,23 @@ pipeline {
                 sh '''
                     echo "📊 Status dos containers:"
                     docker ps --format "table {{.Names}}\\t{{.Status}}\\t{{.Ports}}"
-
+                    
                     echo "🧪 Testando serviços..."
+                    
+                    # Teste backend
                     if curl -s -f http://localhost:3000 > /dev/null; then
-                        echo "🎉 Backend ONLINE - http://localhost:3000"
+                        echo "🎉 Backend ONLINE - http://23.22.57.128:3000"
                     else
                         echo "❌ Backend OFFLINE"
-                        docker logs $(docker-compose ps -q backend) --tail=10
+                        docker logs code-backend-1 --tail=10
                     fi
-
+                    
+                    # Teste frontend  
                     if curl -s -f http://localhost:80 > /dev/null; then
-                        echo "🎉 Frontend ONLINE - http://localhost"
+                        echo "🎉 Frontend ONLINE - http://23.22.57.128"
                     else
                         echo "❌ Frontend OFFLINE"
-                        docker logs $(docker-compose ps -q frontend) --tail=10
+                        docker logs code-frontend-1 --tail=10
                     fi
                 '''
             }
@@ -72,8 +75,8 @@ pipeline {
     post {
         success {
             echo "🎊 DEPLOY SUCESSO!"
-            echo "🌐 Frontend: http://localhost"
-            echo "🔧 Backend: http://localhost:3000"
+            echo "🌐 Frontend: http://23.22.57.128"
+            echo "🔧 Backend: http://23.22.57.128:3000"
         }
         failure {
             echo "💥 DEPLOY FALHOU"
