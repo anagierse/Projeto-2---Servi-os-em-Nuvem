@@ -13,28 +13,84 @@ pipeline {
             }
         }
 
-        stage('🚀 Deploy com Docker Compose') {
+        stage('🔍 Verificar Estrutura') {
             steps {
-                echo "2. 🚀 Deploy com Docker Compose..."
+                echo "2. 🔍 Verificando arquivos..."
                 dir('Code') {
                     sh '''
-                        docker-compose down
-                        docker-compose build --no-cache
-                        docker-compose up -d
+                        echo "=== BACKEND ==="
+                        ls -la backend/ && echo "✅ Backend encontrado" || echo "❌ Backend não encontrado"
+                        echo "=== FRONTEND ==="  
+                        ls -la frontend/ && echo "✅ Frontend encontrado" || echo "❌ Frontend não encontrado"
+                        echo "=== DOCKERFILES ==="
+                        cat backend/Dockerfile | head -3 && echo "✅ Dockerfile backend OK" || echo "❌ Dockerfile backend problema"
+                        cat frontend/Dockerfile | head -3 && echo "✅ Dockerfile frontend OK" || echo "❌ Dockerfile frontend problema"
+                    '''
+                }
+            }
+        }
+
+        stage('🐳 Build Frontend') {
+            steps {
+                echo "3. 🐳 Construindo Frontend..."
+                dir('Code') {
+                    sh 'timeout 300 docker build -t code-frontend -f frontend/Dockerfile ./frontend || echo "⚠️ Build frontend pode ter demorado muito"'
+                }
+            }
+        }
+
+        stage('🐳 Build Backend') {
+            steps {
+                echo "4. 🐳 Construindo Backend..."
+                dir('Code') {
+                    sh 'timeout 300 docker build -t code-backend -f backend/Dockerfile ./backend || echo "⚠️ Build backend pode ter demorado muito"'
+                }
+            }
+        }
+
+        stage('🚀 Deploy') {
+            steps {
+                echo "5. 🚀 Implantando containers..."
+                script {
+                    sh '''
+                        echo "🛑 Limpando containers antigos..."
+                        docker stop code-frontend-1 code-backend-1 2>/dev/null || true
+                        docker rm code-frontend-1 code-backend-1 2>/dev/null || true
+                        
+                        echo "🎯 Iniciando Backend..."
+                        docker run -d --name code-backend-1 -p 3000:3000 code-backend || echo "❌ Backend falhou"
+                        
+                        echo "🎯 Iniciando Frontend..." 
+                        docker run -d --name code-frontend-1 -p 80:80 code-frontend || echo "❌ Frontend falhou"
+                        
+                        echo "⏳ Aguardando inicialização..."
                         sleep 20
                     '''
                 }
             }
         }
         
-        stage('✅ Verificação') {
+        stage('✅ Verificação Final') {
             steps {
-                echo "3. ✅ Verificando..."
+                echo "6. ✅ Verificando deploy..."
                 script {
-                    sh 'docker-compose ps'
+                    sh 'docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"'
+                    sh '''
+                        echo " "
+                        echo "🧪 Testes de conectividade:"
+                        curl -s -o /dev/null -w "Frontend: %{http_code}\\n" http://localhost:80
+                        curl -s -o /dev/null -w "Backend: %{http_code}\\n" http://localhost:3000
+                        echo " "
+                    '''
                     sh """
-                        echo "🎉 Deploy completo!"
-                        echo "🌐 Seu app: http://${EC2_IP}"
+                        echo "🎉 DEPLOY CONCLUÍDO!"
+                        echo "🌐 Seu app está em: http://${EC2_IP}"
+                        echo "🔧 API está em: http://${EC2_IP}:3000"
+                        echo " "
+                        echo "💡 Dica: Se as mudanças não aparecerem, tente:"
+                        echo "   - Ctrl+F5 no navegador"
+                        echo "   - Modo anônimo"
+                        echo "   - Aguarde 1-2 minutos para DNS"
                     """
                 }
             }
@@ -43,7 +99,7 @@ pipeline {
 
     post {
         always {
-            echo "🧹 Finalizado"
+            echo "🏁 Pipeline finalizado - Acesse: http://${EC2_IP}"
         }
     }
 }
