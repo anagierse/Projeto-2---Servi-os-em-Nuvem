@@ -18,10 +18,10 @@ pipeline {
                 sh '''
                     echo "🔨 Build Backend..."
                     cd Code/backend && docker build -t code-backend . && cd ../..
-                    
+
                     echo "🔨 Build Frontend..."
                     cd Code/frontend && docker build -t code-frontend . && cd ../..
-                    
+
                     echo "✅ Builds concluídos"
                 '''
             }
@@ -35,8 +35,8 @@ pipeline {
                     docker rm code-backend-1 code-frontend-1 2>/dev/null || true
                     
                     echo "🎯 Iniciando novos containers..."
-                    docker run -d --name code-backend-1 -p 3000:3000 code-backend
-                    docker run -d --name code-frontend-1 -p 80:80 code-frontend
+                    docker run -d --name code-backend-1 --env-file ./Code/env -p 3000:3000 code-backend
+                    docker run -d --name code-frontend-1 --env-file ./Code/env -p 80:80 code-frontend
                     
                     echo "⏳ Aguardando inicialização..."
                     sleep 25
