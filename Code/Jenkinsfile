@@ -1,11 +1,10 @@
 pipeline {
     agent any
-    
+
     environment {
         CODE_DIR = "${WORKSPACE}/Code"
-        ENV_FILE = "${CODE_DIR}/env"
     }
-    
+
     stages {
         stage('📥 Checkout') {
             steps {
@@ -17,69 +16,55 @@ pipeline {
                 '''
             }
         }
-        
+
+        stage('🛠 Criar env seguro') {
+            steps {
+                withCredentials([
+                    string(credentialsId: 'DB_HOST', variable: 'DB_HOST'),
+                    string(credentialsId: 'DB_PORT', variable: 'DB_PORT'),
+                    string(credentialsId: 'DB_NAME', variable: 'DB_NAME'),
+                    string(credentialsId: 'DB_USER', variable: 'DB_USER'),
+                    string(credentialsId: 'DB_PASSWORD', variable: 'DB_PASSWORD')
+                ]) {
+                    sh '''
+                        echo "DB_HOST=$DB_HOST" > $CODE_DIR/env
+                        echo "DB_PORT=$DB_PORT" >> $CODE_DIR/env
+                        echo "DB_NAME=$DB_NAME" >> $CODE_DIR/env
+                        echo "DB_USER=$DB_USER" >> $CODE_DIR/env
+                        echo "DB_PASSWORD=$DB_PASSWORD" >> $CODE_DIR/env
+                        ls -la $CODE_DIR
+                        cat $CODE_DIR/env
+                    '''
+                }
+            }
+        }
+
         stage('🐳 Build Containers') {
             steps {
                 sh '''
-                    echo "🔨 Build Backend..."
                     cd $CODE_DIR/backend && docker build -t code-backend . && cd ../..
-                    
-                    echo "🔨 Build Frontend..."
                     cd $CODE_DIR/frontend && docker build -t code-frontend . && cd ../..
-                    
-                    echo "✅ Builds concluídos"
                 '''
             }
         }
-        
+
         stage('🚀 Deploy') {
             steps {
                 sh '''
-                    echo "🛑 Parando containers antigos..."
                     docker stop code-backend-1 code-frontend-1 2>/dev/null || true
                     docker rm code-backend-1 code-frontend-1 2>/dev/null || true
-                    
-                    echo "🎯 Iniciando novos containers..."
-                    docker run -d --name code-backend-1 --env-file "$ENV_FILE" -p 3000:3000 code-backend
+
+                    docker run -d --name code-backend-1 --env-file "$CODE_DIR/env" -p 3000:3000 code-backend
                     docker run -d --name code-frontend-1 -p 80:80 code-frontend
-                    
-                    echo "⏳ Aguardando inicialização..."
                     sleep 25
                 '''
             }
         }
-        
-        stage('✅ Health Check') {
-            steps {
-                sh '''
-                    echo "📊 Status dos containers:"
-                    docker ps --format "table {{.Names}}\\t{{.Status}}\\t{{.Ports}}"
-                    
-                    echo "🧪 Testando serviços..."
-                    
-                    if curl -s -f http://localhost:3000 > /dev/null; then
-                        echo "🎉 Backend ONLINE - http://23.22.57.128:3000"
-                    else
-                        echo "❌ Backend OFFLINE"
-                        docker logs code-backend-1 --tail=10
-                    fi
-                    
-                    if curl -s -f http://localhost:80 > /dev/null; then
-                        echo "🎉 Frontend ONLINE - http://23.22.57.128"
-                    else
-                        echo "❌ Frontend OFFLINE"
-                        docker logs code-frontend-1 --tail=10
-                    fi
-                '''
-            }
-        }
     }
-    
+
     post {
         success {
             echo "🎊 DEPLOY SUCESSO!"
-            echo "🌐 Frontend: http://23.22.57.128"
-            echo "🔧 Backend: http://23.22.57.128:3000"
         }
         failure {
             echo "💥 DEPLOY FALHOU"
