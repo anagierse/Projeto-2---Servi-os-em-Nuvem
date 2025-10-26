@@ -7,56 +7,74 @@ pipeline {
                 checkout scm
                 sh '''
                     echo "✅ Código baixado"
-                    echo "📄 Verificando arquivo .env:"
-                    ls -la Code/.env || echo "❌ .env não encontrado"
-                    ls -la Code/env || echo "❌ env não encontrado"
+                    echo "📄 Verificando arquivo env:"
+                    ls -la Code/env
+                    cat Code/env
                 '''
             }
         }
         
-        stage('🚀 Deploy com Docker Compose') {
+        stage('🐳 Build Images') {
             steps {
                 sh '''
-                    echo "🎯 Usando Docker Compose para deploy..."
-                    cd Code
+                    echo "🔨 Construindo Backend..."
+                    docker build -t backend-app ./Code/backend
                     
-                    # Para os serviços sem remover volumes (mantém dados)
-                    docker-compose down
+                    echo "🔨 Construindo Frontend..."
+                    docker build -t frontend-app ./Code/frontend
                     
-                    # Constrói e sobe os serviços
-                    docker-compose up -d --build
+                    echo "✅ Builds concluídos"
+                '''
+            }
+        }
+        
+        stage('🚀 Deploy') {
+            steps {
+                sh '''
+                    echo "🛑 Parando containers antigos..."
+                    docker stop code-backend-1 code-frontend-1 2>/dev/null || echo "Containers não existiam"
+                    docker rm code-backend-1 code-frontend-1 2>/dev/null || echo "Containers já removidos"
                     
-                    echo "⏳ Aguardando inicialização..."
+                    echo "🎯 Iniciando novos containers..."
+                    
+                    # Backend com arquivo env
+                    docker run -d --name code-backend-1 -p 3000:3000 \
+                      --env-file ./Code/env \
+                      backend-app
+                      
+                    # Frontend
+                    docker run -d --name code-frontend-1 -p 80:80 \
+                      frontend-app
+                    
+                    echo "⏳ Aguardando 30 segundos..."
                     sleep 30
                 '''
             }
         }
         
-        stage('✅ Health Check') {
+        stage('✅ Verificação') {
             steps {
                 sh '''
-                    echo "📊 Status dos serviços:"
-                    cd Code && docker-compose ps
+                    echo "📋 Containers rodando:"
+                    docker ps --format "table {{.Names}}\\t{{.Status}}\\t{{.Ports}}"
                     
-                    echo "🔍 Verificando variáveis no backend:"
-                    docker-compose -f Code/docker-compose.yml exec -T backend printenv | grep DB || echo "❌ Não foi possível verificar variáveis"
+                    echo "🔍 Variáveis no container:"
+                    docker exec code-backend-1 printenv | grep DB
                     
-                    echo "🧪 Testando serviços..."
-                    
-                    # Teste backend
+                    echo "🧪 Testando Backend..."
                     if curl -s -f http://localhost:3000 > /dev/null; then
-                        echo "🎉 Backend ONLINE - http://23.22.57.128:3000"
+                        echo "🎉 BACKEND ONLINE - http://23.22.57.128:3000"
                     else
-                        echo "❌ Backend OFFLINE"
-                        docker-compose -f Code/docker-compose.yml logs backend
+                        echo "❌ BACKEND OFFLINE"
+                        docker logs code-backend-1 --tail=20
                     fi
                     
-                    # Teste frontend  
+                    echo "🧪 Testando Frontend..."
                     if curl -s -f http://localhost:80 > /dev/null; then
-                        echo "🎉 Frontend ONLINE - http://23.22.57.128"
+                        echo "🎉 FRONTEND ONLINE - http://23.22.57.128"
                     else
-                        echo "❌ Frontend OFFLINE"
-                        docker-compose -f Code/docker-compose.yml logs frontend
+                        echo "❌ FRONTEND OFFLINE"
+                        docker logs code-frontend-1 --tail=10
                     fi
                 '''
             }
