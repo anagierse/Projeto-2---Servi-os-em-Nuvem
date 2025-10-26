@@ -5,27 +5,68 @@ pipeline {
         stage('📥 Checkout') {
             steps {
                 checkout scm
-                sh 'ls -la'
-            }
-        }
-        
-        stage('🐳 Build e Deploy') {
-            steps {
                 sh '''
-                    docker-compose down
-                    docker-compose build --no-cache
-                    docker-compose up -d
-                    sleep 30
+                    echo "📁 Estrutura do projeto:"
+                    ls -la Code/
+                    echo "✅ Checkout completo"
                 '''
             }
         }
         
-        stage('✅ Testes') {
+        stage('🐳 Build Containers') {
             steps {
                 sh '''
-                    docker-compose ps
-                    curl -f http://localhost:3000 && echo "✅ Backend OK" || echo "❌ Backend FAIL"
-                    curl -f http://localhost:80 && echo "✅ Frontend OK" || echo "❌ Frontend FAIL"
+                    echo "🔨 Build Backend..."
+                    cd Code/backend && docker build -t code-backend . && cd ../..
+                    
+                    echo "🔨 Build Frontend..."
+                    cd Code/frontend && docker build -t code-frontend . && cd ../..
+                    
+                    echo "✅ Builds concluídos"
+                '''
+            }
+        }
+        
+        stage('🚀 Deploy') {
+            steps {
+                sh '''
+                    echo "🛑 Parando containers antigos..."
+                    docker stop code-backend-1 code-frontend-1 2>/dev/null || true
+                    docker rm code-backend-1 code-frontend-1 2>/dev/null || true
+                    
+                    echo "🎯 Iniciando novos containers..."
+                    docker run -d --name code-backend-1 -p 3000:3000 code-backend
+                    docker run -d --name code-frontend-1 -p 80:80 code-frontend
+                    
+                    echo "⏳ Aguardando inicialização..."
+                    sleep 25
+                '''
+            }
+        }
+        
+        stage('✅ Health Check') {
+            steps {
+                sh '''
+                    echo "📊 Status dos containers:"
+                    docker ps --format "table {{.Names}}\\t{{.Status}}\\t{{.Ports}}"
+                    
+                    echo "🧪 Testando serviços..."
+                    
+                    # Teste backend
+                    if curl -s -f http://localhost:3000 > /dev/null; then
+                        echo "🎉 Backend ONLINE - http://23.22.57.128:3000"
+                    else
+                        echo "❌ Backend OFFLINE"
+                        docker logs code-backend-1 --tail=10
+                    fi
+                    
+                    # Teste frontend  
+                    if curl -s -f http://localhost:80 > /dev/null; then
+                        echo "🎉 Frontend ONLINE - http://23.22.57.128"
+                    else
+                        echo "❌ Frontend OFFLINE"
+                        docker logs code-frontend-1 --tail=10
+                    fi
                 '''
             }
         }
@@ -33,8 +74,12 @@ pipeline {
     
     post {
         success {
-            echo '🎉 SUCCESS!'
-            echo '🌐 http://23.22.57.128'
+            echo "🎊 DEPLOY SUCESSO!"
+            echo "🌐 Frontend: http://23.22.57.128"
+            echo "🔧 Backend: http://23.22.57.128:3000"
+        }
+        failure {
+            echo "💥 DEPLOY FALHOU"
         }
     }
 }
