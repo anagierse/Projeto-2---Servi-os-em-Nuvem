@@ -10,8 +10,8 @@ pipeline {
             steps {
                 echo "1. 📥 Baixando código do GitHub..."
                 checkout scm
-                sh 'ls -la'
-                sh 'ls -la Code/'
+                sh 'echo "📁 Estrutura de pastas:" && ls -la'
+                sh 'echo "📁 Conteúdo da pasta Code:" && ls -la Code/'
             }
         }
         
@@ -19,7 +19,7 @@ pipeline {
             steps {
                 echo "2. 🐳 Construindo imagens Docker..."
                 dir('Code') {
-                    sh 'docker-compose build --no-cache'
+                    sh '/usr/local/bin/docker-compose build --no-cache'
                 }
             }
         }
@@ -29,9 +29,9 @@ pipeline {
                 echo "3. 🚀 Fazendo deploy..."
                 script {
                     dir('Code') {
-                        sh 'docker-compose down || true'
-                        sh 'docker-compose up -d'
-                        sleep 20
+                        sh '/usr/local/bin/docker-compose down || true'
+                        sh '/usr/local/bin/docker-compose up -d'
+                        sleep 25
                     }
                 }
             }
@@ -42,14 +42,14 @@ pipeline {
                 echo "4. 🔍 Verificando serviços..."
                 script {
                     dir('Code') {
-                        sh 'docker-compose ps'
+                        sh '/usr/local/bin/docker-compose ps'
                     }
                     sh """
                         echo " "
                         echo "🎉 DEPLOY COMPLETO!"
                         echo "🌐 Frontend: http://${EC2_IP}"
                         echo "🔧 Backend: http://${EC2_IP}:3000"
-                        echo "⚙️  Jenkins: http://${EC2_IP}:8080"
+                        echo "⚙️ Jenkins: http://${EC2_IP}:8080"
                         echo " "
                     """
                 }
@@ -63,10 +63,10 @@ pipeline {
             deleteDir()
         }
         success {
-            echo "✅ SUCESSO! App disponível em: http://${EC2_IP}"
+            echo "✅ SUCESSO TOTAL! App rodando em: http://${EC2_IP}"
         }
         failure {
-            echo "❌ Erro no pipeline. Verifique os logs acima."
+            echo "❌ Algo deu errado. Verifique os logs acima."
         }
     }
 }
