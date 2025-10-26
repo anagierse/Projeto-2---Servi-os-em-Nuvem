@@ -13,33 +13,36 @@ pipeline {
             }
         }
         
-        stage('🐳 Build Containers') {
+        stage('🔧 Build Images') {
             steps {
                 sh '''
-                    echo "🔨 Build Backend..."
-                    cd Code/backend && docker build -t code-backend . && cd ../..
-                    
-                    echo "🔨 Build Frontend..."
-                    cd Code/frontend && docker build -t code-frontend . && cd ../..
-                    
-                    echo "✅ Builds concluídos"
+                    echo "🐳 Construindo imagens..."
+                    docker build -t backend-app ./Code/backend
+                    docker build -t frontend-app ./Code/frontend
+                    echo "✅ Imagens construídas"
                 '''
             }
         }
         
-        stage('🚀 Deploy') {
+        stage('🚀 Deploy Sem Perder Banco') {
             steps {
                 sh '''
-                    echo "🛑 Parando containers antigos..."
-                    docker stop code-backend-1 code-frontend-1 2>/dev/null || true
-                    docker rm code-backend-1 code-frontend-1 2>/dev/null || true
+                    echo "🔁 Reiniciando containers SEM perder dados..."
                     
-                    echo "🎯 Iniciando novos containers..."
-                    docker run -d --name code-backend-1 -p 3000:3000 code-backend
-                    docker run -d --name code-frontend-1 -p 80:80 code-frontend
+                    # Para e remove APENAS os containers de app, mantendo o banco
+                    docker stop code-backend-1 code-frontend-1 2>/dev/null || echo "Containers de app não existiam"
+                    docker rm code-backend-1 code-frontend-1 2>/dev/null || echo "Containers de app já removidos"
+                    
+                    # Recria os containers de app (banco continua rodando)
+                    docker run -d --name code-backend-1 -p 3000:3000 \
+                      --env-file ./Code/.env \
+                      backend-app
+                      
+                    docker run -d --name code-frontend-1 -p 80:80 \
+                      frontend-app
                     
                     echo "⏳ Aguardando inicialização..."
-                    sleep 25
+                    sleep 20
                 '''
             }
         }
@@ -47,8 +50,8 @@ pipeline {
         stage('✅ Health Check') {
             steps {
                 sh '''
-                    echo "📊 Status dos containers:"
-                    docker ps --format "table {{.Names}}\\t{{.Status}}\\t{{.Ports}}"
+                    echo "📊 Status de TODOS os containers:"
+                    docker ps -a --format "table {{.Names}}\\t{{.Status}}\\t{{.Ports}}"
                     
                     echo "🧪 Testando serviços..."
                     
@@ -77,6 +80,7 @@ pipeline {
             echo "🎊 DEPLOY SUCESSO!"
             echo "🌐 Frontend: http://23.22.57.128"
             echo "🔧 Backend: http://23.22.57.128:3000"
+            echo "💾 Banco de dados: PRESERVADO"
         }
         failure {
             echo "💥 DEPLOY FALHOU"
