@@ -1,109 +1,88 @@
 pipeline {
     agent any
     
-    environment {
-        EC2_IP = "23.22.57.128"
-    }
-
     stages {
         stage('📥 Checkout') {
             steps {
-                echo "1. 📥 Baixando código atualizado..."
+                echo '1. 📥 Baixando código...'
                 checkout scm
-                sh 'echo "📁 Estrutura atual:" && ls -la Code/'
+                sh '''
+                    echo "📁 Estrutura do projeto:"
+                    ls -la
+                    echo "🔍 Conteúdo do backend:"
+                    ls -la backend/
+                    echo "🔍 Conteúdo do frontend:"
+                    ls -la frontend/
+                '''
             }
         }
-
-        stage('🔧 Correção Requirements') {
+        
+        stage('🐳 Build com Docker Compose') {
             steps {
-                echo "2. 🔧 Corrigindo requirements.txt..."
-                dir('Code') {
-                    sh '''
-                        echo "🔍 Verificando backend..."
-                        ls -la backend/
-                        
-                        # CORRIGIR: Arquivo se chama 'requirments.txt' mas Dockerfile procura 'requirements.txt'
-                        echo "📝 Corrigindo nome do arquivo..."
-                        mv backend/requirments.txt backend/requirements.txt 2>/dev/null || echo "✅ Arquivo já está correto"
-                        
-                        echo "✅ Arquivo corrigido:"
-                        ls -la backend/requirements.txt
-                    '''
-                }
-            }
-        }
-
-        stage('🔨 Build Backend') {
-            steps {
-                echo "3. 🐳 Construindo Backend..."
-                dir('Code') {
-                    sh 'docker build -t backend-app -f backend/Dockerfile ./backend || echo "❌ Build backend falhou"'
-                }
-            }
-        }
-
-        stage('🔨 Build Frontend') {
-            steps {
-                echo "4. 🐳 Construindo Frontend..."
-                dir('Code') {
-                    sh 'docker build -t frontend-app -f frontend/Dockerfile ./frontend || echo "❌ Build frontend falhou"'
-                }
-            }
-        }
-
-        stage('🚀 Deploy') {
-            steps {
-                echo "5. 🚀 Implantando containers..."
-                script {
-                    sh '''
-                        echo "🛑 Parando containers antigos..."
-                        # PARA OS CONTAINERS QUE ESTÃO RODANDO (code-frontend-1, code-backend-1)
-                        docker stop code-frontend-1 code-backend-1 2>/dev/null || true
-                        docker rm code-frontend-1 code-backend-1 2>/dev/null || true
-                        
-                        echo "🎯 Iniciando novos containers..."
-                        docker run -d --name code-backend-1 -p 3000:3000 backend-app || echo "❌ Backend não iniciou"
-                        docker run -d --name code-frontend-1 -p 80:80 frontend-app || echo "❌ Frontend não iniciou"
-                        
-                        sleep 25
-                    '''
-                }
+                echo '2. 🐳 Construindo com Docker Compose...'
+                sh '''
+                    echo "🔨 Recriando containers..."
+                    docker-compose down
+                    docker-compose build --no-cache
+                    docker-compose up -d
+                    
+                    echo "⏳ Aguardando inicialização..."
+                    sleep 30
+                '''
             }
         }
         
         stage('✅ Verificação') {
             steps {
-                echo "6. ✅ Verificando deploy..."
-                script {
-                    sh 'docker ps --format "table {{.Names}}\t{{.Status}}\t{{.RunningFor}}"'
-                    sh '''
-                        echo "🧪 Testando serviços..."
-                        curl -f http://localhost:3000 >/dev/null 2>&1 && echo "✅ Backend respondendo" || echo "❌ Backend offline"
-                        curl -f http://localhost:80 >/dev/null 2>&1 && echo "✅ Frontend respondendo" || echo "❌ Frontend offline"
-                    '''
-                    sh """
-                        echo " "
-                        echo "🎉 DEPLOY CONCLUÍDO!"
-                        echo "🌐 Frontend: http://${EC2_IP}"
-                        echo "🔧 Backend: http://${EC2_IP}:3000"
-                        echo " "
-                        echo "📝 Seu HTML atualizado deve estar visível agora!"
-                        echo " "
-                    """
-                }
+                echo '3. ✅ Testando serviços...'
+                sh '''
+                    echo "📋 Status dos containers:"
+                    docker-compose ps
+                    
+                    echo "🧪 Testando Backend (porta 3000)..."
+                    if curl -s -f http://localhost:3000 > /dev/null; then
+                        echo "✅ Backend OK - Respondendo na porta 3000"
+                        curl -s http://localhost:3000 | head -n 5
+                    else
+                        echo "❌ Backend offline"
+                    fi
+                    
+                    echo "🧪 Testando Frontend (porta 80)..."
+                    if curl -s -f http://localhost:80 > /dev/null; then
+                        echo "✅ Frontend OK - Respondendo na porta 80"
+                        curl -s http://localhost:80 | head -n 10
+                    else
+                        echo "❌ Frontend offline"
+                    fi
+                '''
             }
         }
     }
-
+    
     post {
-        always {
-            echo "🧹 Pipeline finalizado"
-        }
         success {
-            echo "✅ SUCESSO! App atualizado em: http://${EC2_IP}"
+            echo '🎉 DEPLOY SUCESSO!'
+            echo '🌐 Frontend: http://23.22.57.128'
+            echo '🔧 Backend: http://23.22.57.128:3000'
+            echo '📝 Seu HTML atualizado deve estar visível agora!'
+            
+            sh '''
+                echo "📊 Logs recentes do backend:"
+                docker-compose logs --tail=10 backend
+                echo "📊 Logs recentes do frontend:"
+                docker-compose logs --tail=10 frontend
+            '''
         }
         failure {
-            echo "❌ Erro no pipeline."
+            echo '❌ Pipeline falhou'
+            sh '''
+                echo "🔍 Debug - Containers:"
+                docker-compose ps
+                echo "🔍 Debug - Logs do backend:"
+                docker-compose logs backend
+                echo "🔍 Debug - Logs do frontend:"
+                docker-compose logs frontend
+            '''
         }
     }
 }
