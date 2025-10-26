@@ -1,0 +1,90 @@
+pipeline {
+    agent any
+    
+    environment {
+        EC2_IP = sh(script: "curl -s http://169.254.169.254/latest/meta-data/public-ipv4", returnStdout: true).trim()
+        APP_URL = "http://${EC2_IP}"
+        BACKEND_URL = "http://${EC2_IP}:3000"
+    }
+    
+    stages {
+        stage('📦 Checkout Code') {
+            steps {
+                echo "1. 📥 Baixando código do GitHub..."
+                git branch: 'main',
+                    url: 'https://github.com/anagierse/Projeto-2---Servi-os-em-Nuvem.git'
+                
+                sh 'ls -la'
+            }
+        }
+        
+        stage('🔨 Build Images') {
+            steps {
+                echo "2. 🐳 Construindo imagens Docker..."
+                sh 'docker-compose build --no-cache'
+                
+                sh 'docker images | head -10'
+            }
+        }
+        
+        stage('🚀 Deploy') {
+            steps {
+                echo "3. 🚀 Fazendo deploy..."
+                script {
+                    sh 'docker-compose down || true'
+                    
+                    sh 'docker system prune -f || true'
+                    
+                    sh 'docker-compose up -d'
+                    
+                    sleep 30
+                    
+                    sh 'docker-compose ps'
+                }
+            }
+        }
+        
+        stage('🏥 Health Check') {
+            steps {
+                echo "4. 🔍 Verificando saúde dos serviços..."
+                script {
+                    sh """
+                        echo "Testando Backend (${BACKEND_URL})..."
+                        curl -s -o /dev/null -w 'Backend: %{http_code}\n' ${BACKEND_URL} || echo "Backend com possível problema"
+                        
+                        echo "Testando Frontend (${APP_URL})..."
+                        curl -s -o /dev/null -w 'Frontend: %{http_code}\n' ${APP_URL} || echo "Frontend com possível problema"
+                    """
+                }
+            }
+        }
+        
+        stage('📊 Display Info') {
+            steps {
+                echo "5. 🌐 URLs de Acesso:"
+                script {
+                    echo "✅ DEPLOY COMPLETO!"
+                    echo "👉 Seu App: ${APP_URL}"
+                    echo "👉 Backend API: ${BACKEND_URL}"
+                    echo "👉 Jenkins: ${APP_URL}:8080"
+                    
+                    currentBuild.description = "App: ${APP_URL} | API: ${BACKEND_URL}"
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            echo "6. 🧹 Limpando workspace..."
+            cleanWs()
+        }
+        success {
+            echo "🎉 PIPELINE EXECUTADO COM SUCESSO!"
+            echo "🌐 Acesse seu app em: ${APP_URL}"
+        }
+        failure {
+            echo "❌ Pipeline falhou - verifique os logs acima"
+        }
+    }
+}
