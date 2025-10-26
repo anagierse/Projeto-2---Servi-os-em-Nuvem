@@ -6,51 +6,28 @@ pipeline {
             steps {
                 checkout scm
                 sh '''
-                    echo "📁 Estrutura do projeto:"
-                    ls -la Code/
-                    echo "🔍 Verificando .env do repositório:"
-                    cat Code/.env || echo "❌ .env não encontrado no repo"
+                    echo "✅ Código baixado"
+                    echo "📄 Verificando arquivo .env:"
+                    ls -la Code/.env || echo "❌ .env não encontrado"
+                    ls -la Code/env || echo "❌ env não encontrado"
                 '''
             }
         }
         
-        stage('🔧 Build Images') {
+        stage('🚀 Deploy com Docker Compose') {
             steps {
                 sh '''
-                    echo "🐳 Construindo imagens..."
-                    docker build -t backend-app ./Code/backend
-                    docker build -t frontend-app ./Code/frontend
-                    echo "✅ Imagens construídas"
-                '''
-            }
-        }
-        
-        stage('🚀 Deploy com Variáveis Corretas') {
-            steps {
-                sh '''
-                    echo "🔄 Reiniciando containers..."
+                    echo "🎯 Usando Docker Compose para deploy..."
+                    cd Code
                     
-                    # Para e remove containers de app
-                    docker stop code-backend-1 code-frontend-1 2>/dev/null || echo "Containers não existiam"
-                    docker rm code-backend-1 code-frontend-1 2>/dev/null || echo "Containers já removidos"
+                    # Para os serviços sem remover volumes (mantém dados)
+                    docker-compose down
                     
-                    echo "🎯 Iniciando containers COM VARIÁVEIS CORRETAS..."
-                    
-                    # Backend com variáveis inline (substitua pelos seus valores reais)
-                    docker run -d --name code-backend-1 -p 3000:3000 \
-                      -e DB_HOST=receitas-db.xxxxx.us-east-1.rds.amazonaws.com \
-                      -e DB_NAME=db_receitas \
-                      -e DB_USER=receitas_admin \
-                      -e DB_PASSWORD=MinhaSenhaSegura123 \
-                      -e DB_PORT=5432 \
-                      backend-app
-                      
-                    # Frontend
-                    docker run -d --name code-frontend-1 -p 80:80 \
-                      frontend-app
+                    # Constrói e sobe os serviços
+                    docker-compose up -d --build
                     
                     echo "⏳ Aguardando inicialização..."
-                    sleep 25
+                    sleep 30
                 '''
             }
         }
@@ -58,11 +35,11 @@ pipeline {
         stage('✅ Health Check') {
             steps {
                 sh '''
-                    echo "📊 Containers ativos:"
-                    docker ps --format "table {{.Names}}\\t{{.Status}}\\t{{.Ports}}"
+                    echo "📊 Status dos serviços:"
+                    cd Code && docker-compose ps
                     
-                    echo "🔍 Verificando variáveis no container:"
-                    docker exec code-backend-1 printenv | grep DB
+                    echo "🔍 Verificando variáveis no backend:"
+                    docker-compose -f Code/docker-compose.yml exec -T backend printenv | grep DB || echo "❌ Não foi possível verificar variáveis"
                     
                     echo "🧪 Testando serviços..."
                     
@@ -71,7 +48,7 @@ pipeline {
                         echo "🎉 Backend ONLINE - http://23.22.57.128:3000"
                     else
                         echo "❌ Backend OFFLINE"
-                        docker logs code-backend-1 --tail=15
+                        docker-compose -f Code/docker-compose.yml logs backend
                     fi
                     
                     # Teste frontend  
@@ -79,7 +56,7 @@ pipeline {
                         echo "🎉 Frontend ONLINE - http://23.22.57.128"
                     else
                         echo "❌ Frontend OFFLINE"
-                        docker logs code-frontend-1 --tail=10
+                        docker-compose -f Code/docker-compose.yml logs frontend
                     fi
                 '''
             }
