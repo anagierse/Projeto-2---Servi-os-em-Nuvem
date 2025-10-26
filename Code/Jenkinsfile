@@ -8,7 +8,7 @@ pipeline {
                 sh '''
                     echo "📁 Estrutura do projeto:"
                     ls -la Code/
-                    echo "🔍 Verificando .env atual:"
+                    echo "🔍 Verificando .env do repositório:"
                     cat Code/.env || echo "❌ .env não encontrado no repo"
                 '''
             }
@@ -25,22 +25,27 @@ pipeline {
             }
         }
         
-        stage('🚀 Deploy com .env Correto') {
+        stage('🚀 Deploy com Variáveis Corretas') {
             steps {
                 sh '''
-                    echo "🔄 Reiniciando containers com .env LOCAL..."
+                    echo "🔄 Reiniciando containers..."
                     
                     # Para e remove containers de app
                     docker stop code-backend-1 code-frontend-1 2>/dev/null || echo "Containers não existiam"
                     docker rm code-backend-1 code-frontend-1 2>/dev/null || echo "Containers já removidos"
                     
-                    echo "📄 Usando .env LOCAL da EC2 (não do GitHub)..."
+                    echo "🎯 Iniciando containers COM VARIÁVEIS CORRETAS..."
                     
-                    # Recria containers usando o .env LOCAL que já está na EC2
+                    # Backend com variáveis inline (substitua pelos seus valores reais)
                     docker run -d --name code-backend-1 -p 3000:3000 \
-                      --env-file /home/ubuntu/Projeto-2---Servi-os-em-Nuvem/Code/.env \
+                      -e DB_HOST=receitas-db.xxxxx.us-east-1.rds.amazonaws.com \
+                      -e DB_NAME=db_receitas \
+                      -e DB_USER=receitas_admin \
+                      -e DB_PASSWORD=MinhaSenhaSegura123 \
+                      -e DB_PORT=5432 \
                       backend-app
                       
+                    # Frontend
                     docker run -d --name code-frontend-1 -p 80:80 \
                       frontend-app
                     
@@ -86,7 +91,6 @@ pipeline {
             echo "🎊 DEPLOY SUCESSO!"
             echo "🌐 Frontend: http://23.22.57.128"
             echo "🔧 Backend: http://23.22.57.128:3000"
-            echo "✅ Banco: Conexão mantida com RDS"
         }
         failure {
             echo "💥 DEPLOY FALHOU"
