@@ -52,7 +52,6 @@ pipeline {
                     
                     echo "🧪 Testando serviços..."
                     
-                    # Teste backend
                     if curl -s -f http://localhost:3000 > /dev/null; then
                         echo "🎉 Backend ONLINE - http://23.22.57.128:3000"
                     else
@@ -60,7 +59,6 @@ pipeline {
                         docker logs code-backend-1 --tail=10
                     fi
                     
-                    # Teste frontend  
                     if curl -s -f http://localhost:80 > /dev/null; then
                         echo "🎉 Frontend ONLINE - http://23.22.57.128"
                     else
