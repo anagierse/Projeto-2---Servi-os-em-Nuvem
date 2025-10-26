@@ -14,36 +14,30 @@ pipeline {
             }
         }
 
-        stage('🔨 Build Backend') {
+        stage('🔨 Build Images') {
             steps {
-                echo "2. 🐳 Construindo Backend..."
+                echo "2. 🐳 Construindo imagens..."
                 dir('Code') {
-                    sh 'docker build -t backend-app -f backend/Dockerfile ./backend || echo "❌ Build backend falhou"'
-                }
-            }
-        }
-
-        stage('🔨 Build Frontend') {
-            steps {
-                echo "3. 🐳 Construindo Frontend..."
-                dir('Code') {
-                    sh 'docker build -t frontend-app -f frontend/Dockerfile ./frontend || echo "❌ Build frontend falhou"'
+                    sh 'docker build -t code-backend -f backend/Dockerfile ./backend || echo "❌ Build backend falhou"'
+                    sh 'docker build -t code-frontend -f frontend/Dockerfile ./frontend || echo "❌ Build frontend falhou"'
                 }
             }
         }
 
         stage('🚀 Deploy') {
             steps {
-                echo "4. 🚀 Implantando containers..."
+                echo "3. 🚀 Implantando containers..."
                 script {
                     sh '''
                         echo "🛑 Parando containers antigos..."
-                        docker stop backend frontend 2>/dev/null || true
-                        docker rm backend frontend 2>/dev/null || true
+                        # PARA OS CONTAINERS COM OS NOMES CORRETOS
+                        docker stop code-frontend-1 code-backend-1 2>/dev/null || true
+                        docker rm code-frontend-1 code-backend-1 2>/dev/null || true
                         
                         echo "🎯 Iniciando novos containers..."
-                        docker run -d --name backend -p 3000:3000 backend-app || echo "❌ Backend não iniciou"
-                        docker run -d --name frontend -p 80:80 frontend-app || echo "❌ Frontend não iniciou"
+                        # USA OS NOMES CORRETOS E AS IMAGENS CORRETAS
+                        docker run -d --name code-backend-1 -p 3000:3000 code-backend || echo "❌ Backend não iniciou"
+                        docker run -d --name code-frontend-1 -p 80:80 code-frontend || echo "❌ Frontend não iniciou"
                         
                         sleep 25
                     '''
@@ -53,21 +47,22 @@ pipeline {
         
         stage('✅ Verificação') {
             steps {
-                echo "5. ✅ Verificando deploy..."
+                echo "4. ✅ Verificando deploy..."
                 script {
-                    sh 'docker ps --format "table {{.Names}}\t{{.Status}}\t{{.RunningFor}}"'
+                    sh 'docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"'
                     sh '''
                         echo "🧪 Testando serviços..."
                         curl -f http://localhost:3000 >/dev/null 2>&1 && echo "✅ Backend respondendo" || echo "❌ Backend offline"
                         curl -f http://localhost:80 >/dev/null 2>&1 && echo "✅ Frontend respondendo" || echo "❌ Frontend offline"
+                        
+                        echo "🔍 Verificando conteúdo HTML..."
+                        curl -s http://localhost:80 | grep -i "deploy\|funcionando" || echo "❌ Mudanças não encontradas no HTML"
                     '''
                     sh """
                         echo " "
                         echo "🎉 DEPLOY CONCLUÍDO!"
-                        echo "🌐 Frontend: http://${EC2_IP}"
-                        echo "🔧 Backend: http://${EC2_IP}:3000"
-                        echo " "
-                        echo "📝 Seu HTML atualizado deve estar visível agora!"
+                        echo "🌐 Seu app: http://${EC2_IP}"
+                        echo "🔧 API: http://${EC2_IP}:3000"
                         echo " "
                     """
                 }
