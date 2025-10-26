@@ -1,73 +1,24 @@
 pipeline {
     agent any
-    
-    environment {
-        EC2_IP = sh(script: "curl -s http://169.254.169.254/latest/meta-data/public-ipv4", returnStdout: true).trim()
-    }
-    
     stages {
-        stage('📥 Checkout Code') {
+        stage('🔍 Debug') {
             steps {
-                echo "1. 📥 Baixando código..."
+                echo "🔍 Debug completo..."
                 checkout scm
-                sh 'echo "📁 Estrutura raiz:" && ls -la'
-                sh 'echo "📁 Conteúdo da pasta Code:" && ls -la Code/'
-                sh 'echo "📁 Backend existe?" && ls -la Code/backend/ || echo "Pasta backend não encontrada"'
-                sh 'echo "📁 Frontend existe?" && ls -la Code/frontend/ || echo "Pasta frontend não encontrada"'
+                sh '''
+                    echo "=== ESTRUTURA COMPLETA ==="
+                    pwd
+                    ls -la
+                    echo "=== PASTA CODE ==="
+                    ls -la Code/
+                    echo "=== BACKEND ==="
+                    ls -la Code/backend/ 2>/dev/null || echo "Backend não encontrado"
+                    echo "=== FRONTEND ==="
+                    ls -la Code/frontend/ 2>/dev/null || echo "Frontend não encontrado"
+                    echo "=== DOCKER ==="
+                    docker --version || echo "Docker não disponível"
+                '''
             }
-        }
-        
-        stage('🐳 Build Images') {
-            steps {
-                echo "2. 🐳 Construindo imagens..."
-                dir('Code') {
-                    sh 'docker build -t frontend-app ./frontend || echo "❌ Build frontend falhou"'
-                    sh 'docker build -t backend-app ./backend || echo "❌ Build backend falhou"'
-                }
-            }
-        }
-        
-        stage('🚀 Deploy') {
-            steps {
-                echo "3. 🚀 Deploy..."
-                script {
-                    sh 'docker stop frontend-app backend-app 2>/dev/null || true'
-                    sh 'docker rm frontend-app backend-app 2>/dev/null || true'
-                    sh 'docker run -d --name backend-app -p 3000:3000 backend-app || echo "❌ Backend deploy falhou"'
-                    sh 'docker run -d --name frontend-app -p 80:80 frontend-app || echo "❌ Frontend deploy falhou"'
-                    sleep 25
-                }
-            }
-        }
-        
-        stage('✅ Verify') {
-            steps {
-                echo "4. ✅ Verificando..."
-                script {
-                    sh 'docker ps'
-                    sh """
-                        echo " "
-                        echo "🎉 STATUS DO DEPLOY:"
-                        echo "🌐 Frontend: http://${EC2_IP}"
-                        echo "🔧 Backend: http://${EC2_IP}:3000"
-                        echo "⚙️ Jenkins: http://${EC2_IP}:8080"
-                        echo " "
-                    """
-                }
-            }
-        }
-    }
-    
-    post {
-        always {
-            echo "🧹 Finalizando..."
-            deleteDir()
-        }
-        success {
-            echo "✅ SUCESSO! App rodando em: http://${EC2_IP}"
-        }
-        failure {
-            echo "❌ Erro no pipeline."
         }
     }
 }
