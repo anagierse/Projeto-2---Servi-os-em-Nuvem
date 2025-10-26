@@ -1,4 +1,6 @@
-const API_URL = 'https://xxxxxx.execute-api.us-east-1.amazonaws.com/prod';
+const API_URL = "https://n9zm9obpx9.execute-api.us-east-1.amazonaws.com/v1";
+
+
 
 const reportModal = new bootstrap.Modal(document.getElementById('report-modal'));
 
@@ -51,6 +53,7 @@ async function fetchRecipes() {
 }
 
 document.getElementById('recipe-form').addEventListener('submit', async (e) => {
+ 
     e.preventDefault();
 
     const newRecipe = {

@@ -1,9 +1,10 @@
 import os
 import psycopg2
 from flask import Flask, request, jsonify
+from flask_cors import CORS 
 
 app = Flask(__name__)
-
+CORS(app) 
 
 DB_CONFIG = {
     'host': os.getenv('DB_HOST'),
@@ -28,13 +29,17 @@ def listar_receitas():
     if not conn:
         return jsonify({"erro": "Falha na conexão com o banco"}), 503
     
-    cur = conn.cursor()
-    cur.execute("SELECT id, titulo, descricao, tempo_preparo_min, porcoes FROM receitas ORDER BY id;")
-    colunas = [desc[0] for desc in cur.description]
-    receitas = [dict(zip(colunas, row)) for row in cur.fetchall()]
-    cur.close()
-    conn.close()
-    return jsonify(receitas)
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT id, titulo, descricao, tempo_preparo_min, porcoes FROM receitas ORDER BY id;")
+        colunas = [desc[0] for desc in cur.description]
+        receitas = [dict(zip(colunas, row)) for row in cur.fetchall()]
+        cur.close()
+        conn.close()
+        return jsonify(receitas)
+    except Exception as e:
+        return jsonify({"erro": str(e)}), 500
+
 
 
 @app.route('/receitas/<int:receita_id>', methods=['GET'])

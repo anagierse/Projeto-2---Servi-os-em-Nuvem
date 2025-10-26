@@ -1,11 +1,5 @@
 FROM python:3.10-slim
 
-ENV DB_HOST=  \
-    DB_NAME=  \
-    DB_USER=  \
-    DB_PASSWORD=  \
-    DB_PORT=5432
-
 WORKDIR /app
 
 COPY requirements.txt ./
