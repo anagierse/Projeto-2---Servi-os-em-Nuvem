@@ -8,7 +8,8 @@ pipeline {
                 sh '''
                     echo "📁 Estrutura do projeto:"
                     ls -la Code/
-                    echo "✅ Checkout completo"
+                    echo "🔍 Verificando .env atual:"
+                    cat Code/.env || echo "❌ .env não encontrado no repo"
                 '''
             }
         }
@@ -24,25 +25,27 @@ pipeline {
             }
         }
         
-        stage('🚀 Deploy Sem Perder Banco') {
+        stage('🚀 Deploy com .env Correto') {
             steps {
                 sh '''
-                    echo "🔁 Reiniciando containers SEM perder dados..."
+                    echo "🔄 Reiniciando containers com .env LOCAL..."
                     
-                    # Para e remove APENAS os containers de app, mantendo o banco
-                    docker stop code-backend-1 code-frontend-1 2>/dev/null || echo "Containers de app não existiam"
-                    docker rm code-backend-1 code-frontend-1 2>/dev/null || echo "Containers de app já removidos"
+                    # Para e remove containers de app
+                    docker stop code-backend-1 code-frontend-1 2>/dev/null || echo "Containers não existiam"
+                    docker rm code-backend-1 code-frontend-1 2>/dev/null || echo "Containers já removidos"
                     
-                    # Recria os containers de app (banco continua rodando)
+                    echo "📄 Usando .env LOCAL da EC2 (não do GitHub)..."
+                    
+                    # Recria containers usando o .env LOCAL que já está na EC2
                     docker run -d --name code-backend-1 -p 3000:3000 \
-                      --env-file ./Code/.env \
+                      --env-file /home/ubuntu/Projeto-2---Servi-os-em-Nuvem/Code/.env \
                       backend-app
                       
                     docker run -d --name code-frontend-1 -p 80:80 \
                       frontend-app
                     
                     echo "⏳ Aguardando inicialização..."
-                    sleep 20
+                    sleep 25
                 '''
             }
         }
@@ -50,8 +53,11 @@ pipeline {
         stage('✅ Health Check') {
             steps {
                 sh '''
-                    echo "📊 Status de TODOS os containers:"
-                    docker ps -a --format "table {{.Names}}\\t{{.Status}}\\t{{.Ports}}"
+                    echo "📊 Containers ativos:"
+                    docker ps --format "table {{.Names}}\\t{{.Status}}\\t{{.Ports}}"
+                    
+                    echo "🔍 Verificando variáveis no container:"
+                    docker exec code-backend-1 printenv | grep DB
                     
                     echo "🧪 Testando serviços..."
                     
@@ -60,7 +66,7 @@ pipeline {
                         echo "🎉 Backend ONLINE - http://23.22.57.128:3000"
                     else
                         echo "❌ Backend OFFLINE"
-                        docker logs code-backend-1 --tail=10
+                        docker logs code-backend-1 --tail=15
                     fi
                     
                     # Teste frontend  
@@ -80,7 +86,7 @@ pipeline {
             echo "🎊 DEPLOY SUCESSO!"
             echo "🌐 Frontend: http://23.22.57.128"
             echo "🔧 Backend: http://23.22.57.128:3000"
-            echo "💾 Banco de dados: PRESERVADO"
+            echo "✅ Banco: Conexão mantida com RDS"
         }
         failure {
             echo "💥 DEPLOY FALHOU"
