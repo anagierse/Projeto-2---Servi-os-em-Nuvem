@@ -30,12 +30,10 @@ pipeline {
                 script {
                     sh '''
                         echo "🛑 Parando containers antigos..."
-                        # PARA OS CONTAINERS COM OS NOMES CORRETOS
                         docker stop code-frontend-1 code-backend-1 2>/dev/null || true
                         docker rm code-frontend-1 code-backend-1 2>/dev/null || true
                         
                         echo "🎯 Iniciando novos containers..."
-                        # USA OS NOMES CORRETOS E AS IMAGENS CORRETAS
                         docker run -d --name code-backend-1 -p 3000:3000 code-backend || echo "❌ Backend não iniciou"
                         docker run -d --name code-frontend-1 -p 80:80 code-frontend || echo "❌ Frontend não iniciou"
                         
@@ -56,7 +54,7 @@ pipeline {
                         curl -f http://localhost:80 >/dev/null 2>&1 && echo "✅ Frontend respondendo" || echo "❌ Frontend offline"
                         
                         echo "🔍 Verificando conteúdo HTML..."
-                        curl -s http://localhost:80 | grep -i "deploy\|funcionando" || echo "❌ Mudanças não encontradas no HTML"
+                        curl -s http://localhost:80 | grep -i -E "deploy|funcionando" || echo "❌ Mudanças não encontradas no HTML"
                     '''
                     sh """
                         echo " "
