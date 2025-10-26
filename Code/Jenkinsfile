@@ -4,56 +4,28 @@ pipeline {
     stages {
         stage('📥 Checkout') {
             steps {
-                echo '1. 📥 Baixando código...'
                 checkout scm
-                sh '''
-                    echo "📁 Estrutura do projeto:"
-                    ls -la
-                    echo "🔍 Conteúdo do backend:"
-                    ls -la backend/
-                    echo "🔍 Conteúdo do frontend:"
-                    ls -la frontend/
-                '''
+                sh 'ls -la'
             }
         }
         
-        stage('🐳 Build com Docker Compose') {
+        stage('🐳 Build e Deploy') {
             steps {
-                echo '2. 🐳 Construindo com Docker Compose...'
                 sh '''
-                    echo "🔨 Recriando containers..."
                     docker-compose down
                     docker-compose build --no-cache
                     docker-compose up -d
-                    
-                    echo "⏳ Aguardando inicialização..."
                     sleep 30
                 '''
             }
         }
         
-        stage('✅ Verificação') {
+        stage('✅ Testes') {
             steps {
-                echo '3. ✅ Testando serviços...'
                 sh '''
-                    echo "📋 Status dos containers:"
                     docker-compose ps
-                    
-                    echo "🧪 Testando Backend (porta 3000)..."
-                    if curl -s -f http://localhost:3000 > /dev/null; then
-                        echo "✅ Backend OK - Respondendo na porta 3000"
-                        curl -s http://localhost:3000 | head -n 5
-                    else
-                        echo "❌ Backend offline"
-                    fi
-                    
-                    echo "🧪 Testando Frontend (porta 80)..."
-                    if curl -s -f http://localhost:80 > /dev/null; then
-                        echo "✅ Frontend OK - Respondendo na porta 80"
-                        curl -s http://localhost:80 | head -n 10
-                    else
-                        echo "❌ Frontend offline"
-                    fi
+                    curl -f http://localhost:3000 && echo "✅ Backend OK" || echo "❌ Backend FAIL"
+                    curl -f http://localhost:80 && echo "✅ Frontend OK" || echo "❌ Frontend FAIL"
                 '''
             }
         }
@@ -61,28 +33,8 @@ pipeline {
     
     post {
         success {
-            echo '🎉 DEPLOY SUCESSO!'
-            echo '🌐 Frontend: http://23.22.57.128'
-            echo '🔧 Backend: http://23.22.57.128:3000'
-            echo '📝 Seu HTML atualizado deve estar visível agora!'
-            
-            sh '''
-                echo "📊 Logs recentes do backend:"
-                docker-compose logs --tail=10 backend
-                echo "📊 Logs recentes do frontend:"
-                docker-compose logs --tail=10 frontend
-            '''
-        }
-        failure {
-            echo '❌ Pipeline falhou'
-            sh '''
-                echo "🔍 Debug - Containers:"
-                docker-compose ps
-                echo "🔍 Debug - Logs do backend:"
-                docker-compose logs backend
-                echo "🔍 Debug - Logs do frontend:"
-                docker-compose logs frontend
-            '''
+            echo '🎉 SUCCESS!'
+            echo '🌐 http://23.22.57.128'
         }
     }
 }
