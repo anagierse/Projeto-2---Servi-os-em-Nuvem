@@ -1,15 +1,21 @@
 pipeline {
     agent any
     
+    environment {
+        DB_HOST = credentials('db-host')
+        DB_USER = credentials('db-user')
+        DB_PASSWORD = credentials('db-password')
+        DB_NAME = credentials('db-name')
+        DB_PORT = credentials('db-port')
+    }
+    
     stages {
         stage('📥 Checkout') {
             steps {
                 checkout scm
                 sh '''
                     echo "✅ Código baixado"
-                    echo "📄 Verificando arquivo env:"
-                    ls -la Code/env
-                    cat Code/env
+                    ls -la Code/
                 '''
             }
         }
@@ -37,9 +43,13 @@ pipeline {
                     
                     echo "🎯 Iniciando novos containers..."
                     
-                    # Backend com arquivo env
+                    # Backend com variáveis das credenciais do Jenkins
                     docker run -d --name code-backend-1 -p 3000:3000 \
-                      --env-file ./Code/env \
+                      -e DB_HOST=${DB_HOST} \
+                      -e DB_USER=${DB_USER} \
+                      -e DB_PASSWORD=${DB_PASSWORD} \
+                      -e DB_NAME=${DB_NAME} \
+                      -e DB_PORT=${DB_PORT} \
                       backend-app
                       
                     # Frontend
