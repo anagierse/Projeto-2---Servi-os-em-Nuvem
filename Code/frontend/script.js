@@ -1,6 +1,6 @@
 const API_URL = "https://n9zm9obpx9.execute-api.us-east-1.amazonaws.com/v1";
 
-
+console.log("mostrando como funciona") 
 const reportModal = new bootstrap.Modal(document.getElementById('report-modal'));
 
 async function fetchRecipes() {
