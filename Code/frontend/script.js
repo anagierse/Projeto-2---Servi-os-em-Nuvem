@@ -209,23 +209,130 @@ async function fetchReport() {
 
         if (response.ok) {
             const reportData = await response.json();
-            reportContent.innerHTML = `
-                <p><strong>Status:</strong> Sucesso (200)</p>
-                <p>O Lambda consumiu a API e gerou as seguintes estatísticas:</p>
-                <pre>${JSON.stringify(reportData, null, 2)}</pre>
+            
+            let htmlContent = `
+                <div class="alert alert-success">
+                    <h6><i class="fas fa-check-circle"></i> Relatório gerado com sucesso!</h6>
+                    <p class="mb-0">Estatísticas das receitas calculadas pela AWS Lambda</p>
+                </div>
+                <div class="row">
             `;
+
+            if (reportData.total_receitas !== undefined) {
+                htmlContent += `
+                    <div class="col-md-6 mb-3">
+                        <div class="card bg-primary text-white">
+                            <div class="card-body text-center">
+                                <h4 class="card-title">${reportData.total_receitas}</h4>
+                                <p class="card-text mb-0">Total de Receitas</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (reportData.tempo_medio_preparo !== undefined) {
+                htmlContent += `
+                    <div class="col-md-6 mb-3">
+                        <div class="card bg-info text-white">
+                            <div class="card-body text-center">
+                                <h4 class="card-title">${reportData.tempo_medio_preparo} min</h4>
+                                <p class="card-text mb-0">Tempo Médio de Preparo</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            htmlContent += `</div><div class="mt-4">`;
+
+            if (reportData.receita_mais_rapida) {
+                htmlContent += `
+                    <div class="card mb-3">
+                        <div class="card-header bg-success text-white">
+                            <i class="fas fa-bolt"></i> Receita Mais Rápida
+                        </div>
+                        <div class="card-body">
+                            <h6 class="card-title">${reportData.receita_mais_rapida.titulo}</h6>
+                            <p class="card-text mb-1"><strong>Tempo:</strong> ${reportData.receita_mais_rapida.tempo_preparo_min} minutos</p>
+                            <p class="card-text mb-0"><strong>Porções:</strong> ${reportData.receita_mais_rapida.porcoes || 'N/A'}</p>
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (reportData.receita_mais_demorada) {
+                htmlContent += `
+                    <div class="card mb-3">
+                        <div class="card-header bg-warning">
+                            <i class="fas fa-clock"></i> Receita Mais Demorada
+                        </div>
+                        <div class="card-body">
+                            <h6 class="card-title">${reportData.receita_mais_demorada.titulo}</h6>
+                            <p class="card-text mb-1"><strong>Tempo:</strong> ${reportData.receita_mais_demorada.tempo_preparo_min} minutos</p>
+                            <p class="card-text mb-0"><strong>Porções:</strong> ${reportData.receita_mais_demorada.porcoes || 'N/A'}</p>
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (reportData.distribuicao_porcoes && Object.keys(reportData.distribuicao_porcoes).length > 0) {
+                htmlContent += `
+                    <div class="card">
+                        <div class="card-header bg-secondary text-white">
+                            <i class="fas fa-chart-pie"></i> Distribuição por Porções
+                        </div>
+                        <div class="card-body">
+                            <ul class="list-group list-group-flush">
+                `;
+                
+                Object.entries(reportData.distribuicao_porcoes).forEach(([porcoes, quantidade]) => {
+                    htmlContent += `
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            ${porcoes} porção${porcoes != 1 ? 'ões' : ''}
+                            <span class="badge bg-primary rounded-pill">${quantidade}</span>
+                        </li>
+                    `;
+                });
+                
+                htmlContent += `
+                            </ul>
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (!reportData.total_receitas && !reportData.tempo_medio_preparo) {
+                htmlContent += `
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> Dados insuficientes para gerar estatísticas.
+                        <br><small>Adicione mais receitas para ver estatísticas detalhadas.</small>
+                    </div>
+                `;
+            }
+
+            htmlContent += `</div>`;
+
+            reportContent.innerHTML = htmlContent;
+
         } else {
             const errorText = await response.text();
-             reportContent.innerHTML = `
+            reportContent.innerHTML = `
                 <div class="alert alert-danger">
-                    <p>Falha no Lambda ou API Gateway (${response.status})</p>
-                    <p>Verifique os logs do Lambda para detalhes.</p>
-                    <pre>${errorText.substring(0, 200)}...</pre>
+                    <h6><i class="fas fa-exclamation-triangle"></i> Erro no Relatório</h6>
+                    <p class="mb-2">Falha no Lambda ou API Gateway (${response.status})</p>
+                    <p class="mb-0 small">Verifique os logs do Lambda para detalhes.</p>
+                    <pre class="mt-2 small">${errorText.substring(0, 200)}...</pre>
                 </div>
             `;
         }
     } catch (error) {
-        reportContent.innerHTML = `<div class="alert alert-danger">Falha de Rede: ${error.message}</div>`;
+        reportContent.innerHTML = `
+            <div class="alert alert-danger">
+                <h6><i class="fas fa-exclamation-triangle"></i> Falha de Rede</h6>
+                <p class="mb-0">${error.message}</p>
+            </div>
+        `;
     }
 }
 
