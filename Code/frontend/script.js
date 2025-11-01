@@ -201,7 +201,7 @@ async function updateRecipe() {
 
 async function fetchReport() {
     const reportContent = document.getElementById('report-content');
-    reportContent.innerHTML = '<p class="text-center">Gerando relatório...</p>';
+    reportContent.innerHTML = '<p class="text-center">Aguardando resposta da AWS Lambda...</p>';
     reportModal.show();
 
     try {
@@ -210,64 +210,64 @@ async function fetchReport() {
         if (response.ok) {
             const reportData = await response.json();
             
-            let htmlContent = '<div class="p-3">';
-
-            if (reportData.total_receitas !== undefined) {
-                htmlContent += `
-                    <div class="mb-3">
-                        <strong>Total de Receitas:</strong> ${reportData.total_receitas}
-                    </div>
-                `;
-            }
-
-            if (reportData.tempo_medio_preparo !== undefined && reportData.tempo_medio_preparo !== null) {
-                htmlContent += `
-                    <div class="mb-3">
-                        <strong>Tempo Médio:</strong> ${reportData.tempo_medio_preparo} minutos
-                    </div>
-                `;
-            }
-
-            if (reportData.receita_mais_rapida && reportData.receita_mais_rapida.titulo) {
-                const tempo = reportData.receita_mais_rapida.tempo_preparo_min || 'N/A';
-                htmlContent += `
-                    <div class="mb-3">
-                        <strong>Receita Mais Rápida:</strong><br>
-                        ${reportData.receita_mais_rapida.titulo} (${tempo} min)
-                    </div>
-                `;
-            }
-
-            if (reportData.receita_mais_demorada && reportData.receita_mais_demorada.titulo) {
-                const tempo = reportData.receita_mais_demorada.tempo_preparo_min || 'N/A';
-                htmlContent += `
-                    <div class="mb-3">
-                        <strong>Receita Mais Demorada:</strong><br>
-                        ${reportData.receita_mais_demorada.titulo} (${tempo} min)
-                    </div>
-                `;
-            }
-
-            // Distribuição por porções
-            if (reportData.distribuicao_porcoes && Object.keys(reportData.distribuicao_porcoes).length > 0) {
-                htmlContent += `<div class="mb-3"><strong>Distribuição por Porções:</strong>`;
+            let htmlContent = `
+                <div class="alert alert-success">
+                    <strong>✓ Relatório gerado com sucesso!</strong>
+                </div>
                 
-                Object.entries(reportData.distribuicao_porcoes).forEach(([porcoes, quantidade]) => {
-                    htmlContent += `<br>• ${porcoes} porção${porcoes != 1 ? 'es' : ''}: ${quantidade}`;
-                });
-                
-                htmlContent += `</div>`;
-            }
+                <div class="list-group">
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <strong>Total de Receitas</strong>
+                        <span class="badge bg-primary rounded-pill">${reportData.total_receitas}</span>
+                    </div>
+                    
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <strong>Tempo Médio de Preparo</strong>
+                        <span class="badge bg-info rounded-pill">${reportData.tempo_preparo_medio_minutos} min</span>
+                    </div>
+                    
+                    <div class="list-group-item">
+                        <strong>Receita Mais Rápida</strong><br>
+                        <span class="text-success">${reportData.receita_mais_rapida.titulo}</span> 
+                        (ID: ${reportData.receita_mais_rapida.id}, ${reportData.receita_mais_rapida.tempo_minutos} min)
+                    </div>
+                    
+                    <div class="list-group-item">
+                        <strong>Receita Mais Demorada</strong><br>
+                        <span class="text-warning">${reportData.receita_mais_demorada.titulo}</span> 
+                        (ID: ${reportData.receita_mais_demorada.id}, ${reportData.receita_mais_demorada.tempo_minutos} min)
+                    </div>
+                    
+                    <div class="list-group-item">
+                        <strong>Distribuição por Porções</strong>
+                        <div class="mt-2">
+            `;
 
-            htmlContent += '</div>';
+            Object.entries(reportData.distribuicao_porcoes).forEach(([porcoes, quantidade]) => {
+                htmlContent += `
+                    <span class="badge bg-secondary me-2">${porcoes} porção${porcoes != 1 ? 'es' : ''}: ${quantidade}</span>
+                `;
+            });
+
+            htmlContent += `
+                        </div>
+                    </div>
+                </div>
+            `;
 
             reportContent.innerHTML = htmlContent;
 
         } else {
-            reportContent.innerHTML = '<div class="alert alert-danger">Erro ao gerar relatório</div>';
+            const errorText = await response.text();
+            reportContent.innerHTML = `
+                <div class="alert alert-danger">
+                    <strong>Erro no Lambda (${response.status})</strong>
+                    <pre class="mt-2 small">${errorText.substring(0, 200)}...</pre>
+                </div>
+            `;
         }
     } catch (error) {
-        reportContent.innerHTML = '<div class="alert alert-danger">Falha de conexão</div>';
+        reportContent.innerHTML = `<div class="alert alert-danger">Falha de Rede: ${error.message}</div>`;
     }
 }
 
