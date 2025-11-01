@@ -1,6 +1,39 @@
 const API_URL = "https://n9zm9obpx9.execute-api.us-east-1.amazonaws.com/v1";
 
 const reportModal = new bootstrap.Modal(document.getElementById('report-modal'));
+const editModal = new bootstrap.Modal(document.getElementById('edit-modal'));
+
+function showToast(message, type = 'success') {
+    const toastContainer = document.getElementById('toast-container') || createToastContainer();
+    
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center text-bg-${type === 'success' ? 'success' : 'danger'} border-0`;
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">
+                ${message}
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+    
+    toastContainer.appendChild(toast);
+    const bsToast = new bootstrap.Toast(toast);
+    bsToast.show();
+    
+    toast.addEventListener('hidden.bs.toast', () => {
+        toast.remove();
+    });
+}
+
+function createToastContainer() {
+    const container = document.createElement('div');
+    container.id = 'toast-container';
+    container.className = 'toast-container position-fixed top-0 end-0 p-3';
+    container.style.zIndex = '9999';
+    document.body.appendChild(container);
+    return container;
+}
 
 async function fetchRecipes() {
     const listElement = document.getElementById('recipes-list');
@@ -28,15 +61,20 @@ async function fetchRecipes() {
                         <div class="card-body">
                             <h5 class="card-title">${recipe.titulo}</h5>
                             <h6 class="card-subtitle mb-2 text-muted">ID: ${recipe.id}</h6>
-                            <p class="card-text">${recipe.descricao.substring(0, 100)}...</p>
+                            <p class="card-text">${recipe.descricao ? recipe.descricao.substring(0, 100) + '...' : 'Sem descrição'}</p>
                         </div>
                         <ul class="list-group list-group-flush">
                             <li class="list-group-item">Preparo: <strong>${recipe.tempo_preparo_min || 'N/A'} min</strong></li>
                             <li class="list-group-item">Porções: <strong>${recipe.porcoes || 'N/A'}</strong></li>
                         </ul>
-                        <div class="card-footer d-flex justify-content-end">
-                            <button class="btn btn-sm btn-danger" onclick="deleteRecipe(${recipe.id})">Deletar</button>
-                            </div>
+                        <div class="card-footer d-flex justify-content-between">
+                            <button class="btn btn-sm btn-outline-primary" onclick="openEditModal(${recipe.id}, '${recipe.titulo.replace(/'/g, "\\'")}', '${(recipe.descricao || '').replace(/'/g, "\\'")}', ${recipe.tempo_preparo_min || 'null'}, ${recipe.porcoes || 'null'})">
+                                <i class="fas fa-pencil-alt"></i> Editar
+                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteRecipe(${recipe.id})">
+                                <i class="fas fa-trash"></i> Deletar
+                            </button>
+                        </div>
                     </div>
                 </div>
             `;
@@ -50,7 +88,6 @@ async function fetchRecipes() {
 }
 
 document.getElementById('recipe-form').addEventListener('submit', async (e) => {
- 
     e.preventDefault();
 
     const newRecipe = {
@@ -70,16 +107,16 @@ document.getElementById('recipe-form').addEventListener('submit', async (e) => {
         });
 
         if (response.status === 201) {
-            alert('Receita adicionada com sucesso!');
+            showToast('Receita adicionada com sucesso!', 'success');
             document.getElementById('recipe-form').reset();
             new bootstrap.Collapse(document.getElementById('recipe-form-area')).hide(); 
             fetchRecipes(); 
         } else {
             const errorData = await response.json();
-            alert(`Erro ao adicionar: ${errorData.erro || response.statusText}`);
+            showToast(`Erro ao adicionar: ${errorData.erro || response.statusText}`, 'danger');
         }
     } catch (error) {
-        alert('Falha ao conectar com a API para criar receita.');
+        showToast('Falha ao conectar com a API para criar receita.', 'danger');
     }
 });
 
@@ -94,18 +131,60 @@ async function deleteRecipe(id) {
         });
 
         if (response.status === 204) {
-            alert(`Receita ID ${id} deletada com sucesso!`);
+            showToast(`Receita ID ${id} deletada com sucesso!`, 'success');
             fetchRecipes(); 
         } else if (response.status === 404) {
-            alert(`Erro: Receita ID ${id} não encontrada.`);
+            showToast(`Erro: Receita ID ${id} não encontrada.`, 'danger');
         } else {
-            alert(`Erro ao deletar: Status ${response.status}`);
+            showToast(`Erro ao deletar: Status ${response.status}`, 'danger');
         }
     } catch (error) {
-        alert('Falha ao conectar com a API para deletar receita.');
+        showToast('Falha ao conectar com a API para deletar receita.', 'danger');
     }
 }
 
+function openEditModal(id, titulo, descricao, tempo_preparo_min, porcoes) {
+    document.getElementById('edit-id').value = id;
+    document.getElementById('edit-titulo').value = titulo;
+    document.getElementById('edit-descricao').value = descricao;
+    document.getElementById('edit-tempo_preparo_min').value = tempo_preparo_min;
+    document.getElementById('edit-porcoes').value = porcoes;
+    
+    const modal = new bootstrap.Modal(document.getElementById('editModal'));
+    modal.show();
+}
+
+async function updateRecipe() {
+    const id = document.getElementById('edit-id').value;
+    const updatedRecipe = {
+        titulo: document.getElementById('edit-titulo').value,
+        descricao: document.getElementById('edit-descricao').value,
+        tempo_preparo_min: parseInt(document.getElementById('edit-tempo_preparo_min').value) || null,
+        porcoes: parseInt(document.getElementById('edit-porcoes').value) || null
+    };
+
+    try {
+        const response = await fetch(`${API_URL}/receitas/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(updatedRecipe),
+        });
+
+        if (response.status === 200) {
+            showToast('Receita atualizada com sucesso!', 'success');
+            const modal = bootstrap.Modal.getInstance(document.getElementById('editModal'));
+            modal.hide();
+            fetchRecipes();
+        } else {
+            const errorData = await response.json();
+            showToast(`Erro ao atualizar: ${errorData.erro || response.statusText}`, 'danger');
+        }
+    } catch (error) {
+        showToast('Falha ao conectar com a API para atualizar receita.', 'danger');
+    }
+}
 
 async function fetchReport() {
     const reportContent = document.getElementById('report-content');
@@ -136,6 +215,5 @@ async function fetchReport() {
         reportContent.innerHTML = `<div class="alert alert-danger">Falha de Rede: ${error.message}</div>`;
     }
 }
-
 
 document.addEventListener('DOMContentLoaded', fetchRecipes);
