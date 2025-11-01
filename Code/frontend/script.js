@@ -1,7 +1,6 @@
 const API_URL = "https://n9zm9obpx9.execute-api.us-east-1.amazonaws.com/v1";
 
 const reportModal = new bootstrap.Modal(document.getElementById('report-modal'));
-const editModal = new bootstrap.Modal(document.getElementById('edit-modal'));
 
 function showToast(message, type = 'success') {
     const toastContainer = document.getElementById('toast-container') || createToastContainer();
@@ -68,7 +67,7 @@ async function fetchRecipes() {
                             <li class="list-group-item">Porções: <strong>${recipe.porcoes || 'N/A'}</strong></li>
                         </ul>
                         <div class="card-footer d-flex justify-content-between">
-                            <button class="btn btn-sm btn-outline-primary" onclick="openEditModal(${recipe.id}, '${recipe.titulo.replace(/'/g, "\\'")}', '${(recipe.descricao || '').replace(/'/g, "\\'")}', ${recipe.tempo_preparo_min || 'null'}, ${recipe.porcoes || 'null'})">
+                            <button class="btn btn-sm btn-outline-primary" onclick="openEditModal(${recipe.id})">
                                 <i class="fas fa-pencil-alt"></i> Editar
                             </button>
                             <button class="btn btn-sm btn-danger" onclick="deleteRecipe(${recipe.id})">
@@ -143,17 +142,36 @@ async function deleteRecipe(id) {
     }
 }
 
-function openEditModal(id, titulo, descricao, tempo_preparo_min, porcoes) {
-    document.getElementById('edit-id').value = id;
-    document.getElementById('edit-titulo').value = titulo;
-    document.getElementById('edit-descricao').value = descricao;
-    document.getElementById('edit-tempo_preparo_min').value = tempo_preparo_min;
-    document.getElementById('edit-porcoes').value = porcoes;
-    
-    const modal = new bootstrap.Modal(document.getElementById('editModal'));
-    modal.show();
+// Função para abrir modal de edição
+async function openEditModal(id) {
+    try {
+        // Buscar os dados atuais da receita da API
+        const response = await fetch(`${API_URL}/receitas/${id}`);
+        
+        if (!response.ok) {
+            showToast('Erro ao carregar dados da receita', 'danger');
+            return;
+        }
+
+        const recipe = await response.json();
+
+        // Preencher o formulário com os dados
+        document.getElementById('edit-id').value = recipe.id;
+        document.getElementById('edit-titulo').value = recipe.titulo;
+        document.getElementById('edit-descricao').value = recipe.descricao || '';
+        document.getElementById('edit-tempo_preparo_min').value = recipe.tempo_preparo_min || '';
+        document.getElementById('edit-porcoes').value = recipe.porcoes || '';
+        
+        // Abrir o modal
+        const modal = new bootstrap.Modal(document.getElementById('editModal'));
+        modal.show();
+
+    } catch (error) {
+        showToast('Erro ao carregar dados para edição', 'danger');
+    }
 }
 
+// Função para atualizar receita
 async function updateRecipe() {
     const id = document.getElementById('edit-id').value;
     const updatedRecipe = {
