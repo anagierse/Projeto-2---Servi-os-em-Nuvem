@@ -142,10 +142,8 @@ async function deleteRecipe(id) {
     }
 }
 
-// Função para abrir modal de edição
 async function openEditModal(id) {
     try {
-        // Buscar os dados atuais da receita da API
         const response = await fetch(`${API_URL}/receitas/${id}`);
         
         if (!response.ok) {
@@ -155,14 +153,12 @@ async function openEditModal(id) {
 
         const recipe = await response.json();
 
-        // Preencher o formulário com os dados
         document.getElementById('edit-id').value = recipe.id;
         document.getElementById('edit-titulo').value = recipe.titulo;
         document.getElementById('edit-descricao').value = recipe.descricao || '';
         document.getElementById('edit-tempo_preparo_min').value = recipe.tempo_preparo_min || '';
         document.getElementById('edit-porcoes').value = recipe.porcoes || '';
         
-        // Abrir o modal
         const modal = new bootstrap.Modal(document.getElementById('editModal'));
         modal.show();
 
@@ -171,7 +167,6 @@ async function openEditModal(id) {
     }
 }
 
-// Função para atualizar receita
 async function updateRecipe() {
     const id = document.getElementById('edit-id').value;
     const updatedRecipe = {
