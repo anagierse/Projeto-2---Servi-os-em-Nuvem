@@ -34,7 +34,8 @@ O domínio escolhido foi o **gerenciamento de receitas**, com API REST em **Flas
 
 ### 🔹 Fluxos Principais
 - **CRUD:** Usuário → EC2 (Frontend) → API Gateway → EC2 (Backend) → RDS (Privado)
-- **Relatório:** API Gateway → Lambda `/report`
+- **Relatório:** Lambda -> (HTTPS) API Gateway   `/report` -> Backend (Flask) -> RDS (Postgres)
+
 - **CI/CD:** GitHub → Jenkins Pipeline → CodeBuild → EC2
 
 ### 🗺️ Diagrama 
