@@ -39,7 +39,8 @@ O domínio escolhido foi o **gerenciamento de receitas**, com API REST em **Flas
 - **CI/CD:** GitHub → Jenkins Pipeline → CodeBuild → EC2
 
 ### 🗺️ Diagrama 
-<img width="1164" height="152" alt="image" src="https://github.com/user-attachments/assets/bc5a696c-a719-4e1e-ac7c-64da5711b718" />
+<img width="1496" height="465" alt="image" src="https://github.com/user-attachments/assets/c7df2126-2df4-4d7d-8acf-6819e73cc82d" />
+
 
 
 | Camada | Serviço AWS | Descrição | Requisito |
